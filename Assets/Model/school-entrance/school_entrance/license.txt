@@ -1,0 +1,11 @@
+Model Information:
+* title:	School_[entrance]
+* source:	https://sketchfab.com/3d-models/school-entrance-62bf26754b2e42fd960dccfc3f9f6ceb
+* author:	Comicaroid (https://sketchfab.com/yuuuusukeeee)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "School_[entrance]" (https://sketchfab.com/3d-models/school-entrance-62bf26754b2e42fd960dccfc3f9f6ceb) by Comicaroid (https://sketchfab.com/yuuuusukeeee) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

@@ -1,0 +1,590 @@
+using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
+
+[RequireComponent(typeof(LobbyManager))]
+[ExecuteAlways] // ?êÎîî?∞Ïóê?úÎèÑ ?§ÌÅ¨Î¶ΩÌä∏Í∞Ä ?åÏïÑÍ∞ÄÍ≤???
+public class LobbyUIBuilder : MonoBehaviour
+{
+    [Header("Custom UI Images")]
+    public Sprite borderSprite; // Í≤åÏûÑ ?åÎëêÎ¶?(?ÑÏöî?ÜÏúºÎ©?ÎπÑÏõå?êÏÑ∏??
+    public Sprite titleLogoSprite; // ?Ä?¥Ì? Î°úÍ≥† ?¥Î?ÏßÄ
+    public Sprite startButtonSprite; // Í≤åÏûÑ ?úÏûë Î≤ÑÌäº ?¥Î?ÏßÄ
+    public Sprite quitButtonSprite; // Í≤åÏûÑ Ï¢ÖÎ£å Î≤ÑÌäº ?¥Î?ÏßÄ
+
+    [Header("UI Settings")]
+    public Vector2 logoSize = new Vector2(1100, 1100); // Î°úÍ≥† ?¨Í∏∞
+    public Vector2 startButtonSize = new Vector2(1000, 1000); // ?úÏûë Î≤ÑÌäº ?¨Í∏∞
+    public Vector2 quitButtonSize = new Vector2(1000, 1000); // Ï¢ÖÎ£å Î≤ÑÌäº ?¨Í∏∞
+    
+    [Header("UI Positions")]
+    public Vector2 logoPosition = Vector2.zero; // Î°úÍ≥† ?ÑÏπò
+    public Vector2 startButtonPosition = new Vector2(0, -170); // ?úÏûë Î≤ÑÌäº ?ÑÏπò
+    public Vector2 quitButtonPosition = new Vector2(0, -400); // Ï¢ÖÎ£å Î≤ÑÌäº ?ÑÏπò
+
+    private bool _isDirty = false;
+
+    private void Start()
+    {
+        if (Application.isPlaying)
+        {
+            // NetworkManager ?ÜÏúºÎ©??ùÏÑ±
+            if (Object.FindFirstObjectByType<NetworkManager>() == null)
+            {
+                new GameObject("NetworkManager").AddComponent<NetworkManager>();
+            }
+
+            BuildUI();
+
+            // [MODIFIED] ?†Ï? ?îÏ≤≠?ºÎ°ú ?¥Îãπ Î≤ÑÌäº??Î∞??®ÎÑê Í∞ïÏ†ú ÎπÑÌôú?±Ìôî
+            // Ï¥àÍ∏∞ ?ÅÌÉú: Î©îÏù∏ Î©îÎâ¥ (Start Î≤ÑÌäº ?úÏãú) -> ?úÍ±∞
+            // SetGameReady(true);
+            Canvas canvas = Object.FindFirstObjectByType<Canvas>();
+            if (canvas != null)
+            {
+                 GameObject startBtn = FindChild(canvas.gameObject, "StartButton");
+                 if (startBtn != null) startBtn.SetActive(false); // ?úÏÑ±??X -> ÎπÑÌôú?±Ìôî
+
+                 GameObject quitBtn = FindChild(canvas.gameObject, "QuitButton");
+                 if (quitBtn != null) quitBtn.SetActive(false); // ?úÏÑ±??X -> ÎπÑÌôú?±Ìôî
+
+                 GameObject panel = FindChild(canvas.gameObject, "ConnectionPanel");
+                 if (panel != null) panel.SetActive(false); // ÎπÑÌôú?±Ìôî
+            }
+
+            // ?¥Î≤§???∞Í≤∞
+            NetworkManager net = Object.FindFirstObjectByType<NetworkManager>();
+            if (net != null)
+            {
+                net.OnConnected += OnClientConnected;
+            }
+        }
+    }
+
+    private void OnClientConnected()
+    {
+        // ?∞Í≤∞?òÎ©¥ Î∞îÎ°ú ?úÏûë?òÏ? ?äÍ≥† Ïπ¥Ïö¥?∏Îã§???úÏûë
+        Canvas canvas = Object.FindFirstObjectByType<Canvas>();
+        if (canvas != null)
+        {
+            GameObject panel = FindChild(canvas.gameObject, "ConnectionPanel");
+            if (panel != null && panel.activeSelf)
+            {
+                StartCoroutine(StartGameCountdown(panel));
+            }
+        }
+    }
+
+    private System.Collections.IEnumerator StartGameCountdown(GameObject panel)
+    {
+        GameObject card = FindChild(panel, "CardBackground");
+        if (card == null) yield break;
+
+        GameObject txtObj = FindChild(card, "InfoText");
+        TextMeshProUGUI txt = (txtObj != null) ? txtObj.GetComponent<TextMeshProUGUI>() : null;
+        
+        // QR ÏΩîÎìú ?¥Î?ÏßÄ???®Í∏∞Í∏?(ÍπîÎÅî?òÍ≤å)
+        GameObject qrObj = FindChild(card, "QRCode");
+        if (qrObj != null) qrObj.SetActive(false);
+
+        float duration = 3.0f;
+        while (duration > 0)
+        {
+            if (txt != null) 
+                txt.text = $"Connected!\nStarting in {Mathf.CeilToInt(duration)}...";
+            
+            yield return null;
+            duration -= Time.deltaTime;
+        }
+
+        if (txt != null) txt.text = "GO!";
+        yield return new WaitForSeconds(0.5f);
+
+        GetComponent<LobbyManager>().StartGame();
+    }
+
+    public void OnStartButtonClicked()
+    {
+        NetworkManager net = NetworkManager.Instance;
+        if (net != null && net.isConnected)
+        {
+            // ?¥Î? ?∞Í≤∞?òÏñ¥ ?àÏúºÎ©?Î∞îÎ°ú ?úÏûë
+            GetComponent<LobbyManager>().StartGame();
+        }
+        else
+        {
+            // ?∞Í≤∞ ???òÏñ¥ ?àÏúºÎ©?QR ÏΩîÎìú ?®ÎÑê ?úÏãú
+            SetGameReady(false);
+        }
+    }
+
+    private void SetGameReady(bool isReady)
+    {
+        Canvas canvas = Object.FindFirstObjectByType<Canvas>();
+        if (canvas == null) return;
+
+        GameObject startBtn = FindChild(canvas.gameObject, "StartButton");
+        if (startBtn != null) startBtn.SetActive(isReady);
+
+        GameObject panel = FindChild(canvas.gameObject, "ConnectionPanel");
+        if (panel != null) panel.SetActive(!isReady);
+    }
+
+    private void OnValidate()
+    {
+        // ?∏Ïä§?ôÌÑ∞?êÏÑú Í∞íÏù¥ Î∞îÎÄåÎ©¥ Í∞±Ïã† ?àÏïΩ
+        _isDirty = true;
+    }
+
+    private void Update()
+    {
+        // ?êÎîî??Î™®Îìú???åÎßå, Í∞íÏù¥ Î∞îÎÄåÏóà?ºÎ©¥ UI ?§Ïãú Í∑∏Î¶¨Í∏?
+        if (!Application.isPlaying && _isDirty)
+        {
+            _isDirty = false;
+            BuildUI();
+        }
+    }
+
+    [ContextMenu("Build Lobby UI")]
+    public void BuildUI()
+    {
+        // 1. Canvas Ï∞æÍ∏∞ ?êÎäî ?ùÏÑ±
+        Canvas canvas = Object.FindFirstObjectByType<Canvas>();
+        if (canvas == null)
+        {
+            GameObject canvasObj = new GameObject("Canvas");
+            canvas = canvasObj.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvasObj.AddComponent<GraphicRaycaster>();
+            
+            CanvasScaler scaler = canvasObj.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920, 1080);
+            scaler.matchWidthOrHeight = 0.5f;
+        }
+
+        // 1.5 EventSystem Ï∞æÍ∏∞ ?êÎäî ?ùÏÑ± (UI ?¥Î¶≠ ?ÑÏàò?îÏÜå)
+        if (Object.FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>() == null)
+        {
+            GameObject eventSystem = new GameObject("EventSystem");
+            eventSystem.AddComponent<UnityEngine.EventSystems.EventSystem>();
+            eventSystem.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+        }
+
+        // 2. Î∞∞Í≤Ω (Panel)
+        GameObject bgObj = FindChild(canvas.gameObject, "BackgroundPanel");
+        if (bgObj == null)
+        {
+            bgObj = new GameObject("BackgroundPanel");
+            bgObj.transform.SetParent(canvas.transform, false);
+            Image img = bgObj.AddComponent<Image>();
+            img.color = new Color(0.05f, 0.05f, 0.1f, 0.8f); 
+            
+            RectTransform rt = bgObj.GetComponent<RectTransform>();
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+        }
+        bgObj.transform.SetAsFirstSibling();
+
+        // [NEW] Í≤åÏûÑ ?åÎëêÎ¶?(Border)
+        if (borderSprite != null)
+        {
+            GameObject borderObj = FindChild(canvas.gameObject, "GameBorder");
+            if (borderObj == null)
+            {
+                borderObj = new GameObject("GameBorder");
+                borderObj.transform.SetParent(canvas.transform, false);
+                Image img = borderObj.AddComponent<Image>();
+                img.sprite = borderSprite;
+                img.raycastTarget = false; 
+                
+                RectTransform rt = borderObj.GetComponent<RectTransform>();
+                rt.anchorMin = Vector2.zero;
+                rt.anchorMax = Vector2.one;
+                rt.offsetMin = Vector2.zero;
+                rt.offsetMax = Vector2.zero;
+            }
+        }
+
+        // [NEW] 3D Î∞∞Í≤Ω ?ùÏÑ±
+        Create3DBackground();
+
+#if UNITY_EDITOR
+        MakeTextureReadable(startButtonSprite);
+        MakeTextureReadable(quitButtonSprite);
+#endif
+
+        // 3. ?Ä?¥Ì? (Text or Logo Image)
+        GameObject titleObj = FindChild(canvas.gameObject, "TitleText");
+        if (titleObj == null)
+        {
+            titleObj = new GameObject("TitleText");
+            titleObj.transform.SetParent(canvas.transform, false);
+            
+            RectTransform rt = titleObj.AddComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0.5f, 0.7f); 
+            rt.anchorMax = new Vector2(0.5f, 0.7f);
+            rt.anchoredPosition = Vector2.zero;
+        }
+
+        if (titleLogoSprite != null)
+        {
+            TextMeshProUGUI oldTxt = titleObj.GetComponent<TextMeshProUGUI>();
+            if (oldTxt != null) DestroyImmediate(oldTxt);
+            
+            Image img = titleObj.GetComponent<Image>();
+            if (img == null) img = titleObj.AddComponent<Image>();
+            
+            img.sprite = titleLogoSprite;
+            img.preserveAspect = true; 
+            // ?¨Ïù¥Ï¶??§Ï†ï (?¨Ïö©??ÏßÄ??
+            titleObj.GetComponent<RectTransform>().sizeDelta = logoSize; 
+            titleObj.GetComponent<RectTransform>().anchoredPosition = logoPosition;
+        }
+        else
+        {
+            Image oldImg = titleObj.GetComponent<Image>();
+            if (oldImg != null) DestroyImmediate(oldImg);
+
+            TextMeshProUGUI txt = titleObj.GetComponent<TextMeshProUGUI>();
+            if (txt == null) txt = titleObj.AddComponent<TextMeshProUGUI>();
+            
+            txt.text = "STEP UP"; 
+            txt.fontSize = 80;
+            txt.alignment = TextAlignmentOptions.Center;
+            txt.color = new Color(0f, 1f, 1f); 
+            txt.fontStyle = FontStyles.Bold | FontStyles.Italic;
+            txt.characterSpacing = 10;
+            
+            if (titleObj.GetComponent<Shadow>() == null)
+            {
+                Shadow shadow = titleObj.AddComponent<Shadow>();
+                shadow.effectColor = new Color(0f, 0.5f, 0.5f, 0.5f);
+                shadow.effectDistance = new Vector2(5, -5);
+            }
+
+            if (titleObj.GetComponent<Outline>() == null)
+            {
+                Outline outline = titleObj.AddComponent<Outline>();
+                outline.effectColor = new Color(0f, 0.2f, 0.2f);
+                outline.effectDistance = new Vector2(2, -2);
+            }
+            
+            titleObj.GetComponent<RectTransform>().sizeDelta = new Vector2(1500, 300);
+            titleObj.GetComponent<RectTransform>().anchoredPosition = logoPosition;
+        }
+
+        // [MODIFIED] ?†Ï? ?îÏ≤≠?ºÎ°ú ?êÎèô ?ùÏÑ± ÎπÑÌôú?±Ìôî
+        // [NEW] ?∞Í≤∞ ?ÄÍ∏??îÎ©¥ (QR ÏΩîÎìú) -> ?êÎèô ?ùÏÑ± ??
+        // CreateConnectionPanel(canvas.transform);
+
+        // 4. ?úÏûë Î≤ÑÌäº (?¥Î?ÏßÄ ÏßÄ?? ?¨Ïù¥Ï¶??ÑÏπò Ï°∞Ï†à Í∞Ä?? -> ?êÎèô ?ùÏÑ± ??
+        /*
+        CreateButton(canvas.transform, "StartButton", "START GAME", startButtonPosition, new Color(0.2f, 0.2f, 0.2f), new Color(0f, 1f, 0.5f), startButtonSprite, startButtonSize, () => {
+            OnStartButtonClicked();
+        });
+        */
+
+        // 5. Ï¢ÖÎ£å Î≤ÑÌäº (?¥Î?ÏßÄ ÏßÄ?? ?¨Ïù¥Ï¶??ÑÏπò Ï°∞Ï†à Í∞Ä?? -> ?êÎèô ?ùÏÑ± ??
+        /*
+        CreateButton(canvas.transform, "QuitButton", "EXIT", quitButtonPosition, new Color(0.2f, 0.2f, 0.2f), new Color(1f, 0.2f, 0.5f), quitButtonSprite, quitButtonSize, () => {
+            GetComponent<LobbyManager>().QuitGame();
+        });
+        */
+        
+        // Ïπ¥Î©î???åÎûÑ?ôÏä§ ?®Í≥º
+        Camera mainCam = Camera.main;
+        if (mainCam != null)
+        {
+            if (mainCam.GetComponent<LobbyCameraEffect>() == null)
+            {
+                mainCam.gameObject.AddComponent<LobbyCameraEffect>();
+            }
+        }
+
+        Debug.Log("Lobby UI Built Successfully!");
+    }
+
+    private void CreateConnectionPanel(Transform parent)
+    {
+        GameObject panelObj = FindChild(parent.gameObject, "ConnectionPanel");
+        if (panelObj == null)
+        {
+            panelObj = new GameObject("ConnectionPanel");
+            panelObj.transform.SetParent(parent, false);
+            
+            // 1. ?ÑÏ≤¥ ?îÎ©¥ Î∞∞Í≤Ω (?¥Îëê??Î∞òÌà¨Î™?
+            Image img = panelObj.AddComponent<Image>();
+            img.color = new Color(0, 0, 0, 0.9f);
+            
+            RectTransform rt = panelObj.GetComponent<RectTransform>();
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+
+            // 2. Ïπ¥Îìú Î∞∞Í≤Ω (Ï§ëÏïô ?ïÎ†¨)
+            GameObject cardObj = new GameObject("CardBackground");
+            cardObj.transform.SetParent(panelObj.transform, false);
+            Image cardImg = cardObj.AddComponent<Image>();
+            cardImg.color = new Color(0.15f, 0.15f, 0.2f, 1f); // ?§ÌÅ¨ Î∏îÎ£® Í∑∏Î†à??
+            
+            // ?•Í∑º Î™®ÏÑúÎ¶??®Í≥º (Outline Ïª¥Ìè¨?åÌä∏Î°??ÄÏ≤¥ÌïòÍ±∞ÎÇò ?§ÌîÑ?ºÏù¥???ÑÏöî, ?¨Í∏∞???âÏÉÅÎß?
+            if (borderSprite != null) cardImg.sprite = borderSprite; // ?åÎëêÎ¶??§ÌîÑ?ºÏù¥???¨Ìôú??Í∞Ä?•ÌïòÎ©??¨Ïö©
+
+            RectTransform cardRt = cardObj.GetComponent<RectTransform>();
+            cardRt.anchorMin = new Vector2(0.5f, 0.5f);
+            cardRt.anchorMax = new Vector2(0.5f, 0.5f);
+            cardRt.sizeDelta = new Vector2(800, 900); // Ïπ¥Îìú ?¨Í∏∞
+            cardRt.anchoredPosition = Vector2.zero;
+
+            // 3. QR ÏΩîÎìú ?¥Î?ÏßÄ
+            GameObject qrObj = new GameObject("QRCode");
+            qrObj.transform.SetParent(cardObj.transform, false);
+            RawImage qrImg = qrObj.AddComponent<RawImage>();
+            
+            Texture2D qrTex = Resources.Load<Texture2D>("qrcode");
+            if (qrTex != null)
+            {
+                qrImg.texture = qrTex;
+                qrObj.GetComponent<RectTransform>().sizeDelta = new Vector2(500, 500);
+            }
+            else
+            {
+                qrImg.color = Color.white;
+                qrObj.GetComponent<RectTransform>().sizeDelta = new Vector2(500, 500);
+            }
+            qrObj.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, 50);
+
+            // 4. ?àÎÇ¥ ?çÏä§??
+            GameObject txtObj = new GameObject("InfoText");
+            txtObj.transform.SetParent(cardObj.transform, false);
+            TextMeshProUGUI txt = txtObj.AddComponent<TextMeshProUGUI>();
+            txt.text = "Scan with your Phone";
+            txt.fontSize = 50;
+            txt.alignment = TextAlignmentOptions.Center;
+            txt.color = new Color(0.8f, 0.9f, 1f);
+            txt.fontStyle = FontStyles.Bold;
+            
+            RectTransform txtRt = txtObj.GetComponent<RectTransform>();
+            txtRt.anchoredPosition = new Vector2(0, 350);
+            txtRt.sizeDelta = new Vector2(700, 100);
+
+            // 5. ?úÎ∏å ?çÏä§??
+            GameObject subTxtObj = new GameObject("SubText");
+            subTxtObj.transform.SetParent(cardObj.transform, false);
+            TextMeshProUGUI subTxt = subTxtObj.AddComponent<TextMeshProUGUI>();
+            subTxt.text = "Make sure both devices are on the\nSAME Wi-Fi Network";
+            subTxt.fontSize = 30;
+            subTxt.alignment = TextAlignmentOptions.Center;
+            subTxt.color = new Color(0.6f, 0.6f, 0.7f);
+            
+            RectTransform subTxtRt = subTxtObj.GetComponent<RectTransform>();
+            subTxtRt.anchoredPosition = new Vector2(0, -250);
+            subTxtRt.sizeDelta = new Vector2(700, 100);
+
+            // 6. Ï∑®ÏÜå Î≤ÑÌäº
+            CreateButton(cardObj.transform, "CancelButton", "CANCEL", new Vector2(0, -380), new Color(0.3f, 0.3f, 0.3f), Color.white, null, new Vector2(300, 80), () => {
+                SetGameReady(true); // ?§Ïãú Î©îÏù∏?ºÎ°ú
+            });
+        }
+        else
+        {
+            // ?¥Î? Ï°¥Ïû¨?òÎ©¥ QR ÏΩîÎìú ?¥Î?ÏßÄÎß?Í∞±Ïã† ?úÎèÑ
+            Transform cardTrans = panelObj.transform.Find("CardBackground");
+            if (cardTrans != null)
+            {
+                Transform qrTrans = cardTrans.Find("QRCode");
+                if (qrTrans != null)
+                {
+                    RawImage qrImg = qrTrans.GetComponent<RawImage>();
+                    Texture2D qrTex = Resources.Load<Texture2D>("qrcode");
+                    if (qrTex != null) qrImg.texture = qrTex;
+                }
+            }
+        }
+    }
+
+    private void CreateButton(Transform parent, string name, string text, Vector2 position, Color bgColor, Color textColor, Sprite sprite, Vector2 size, UnityEngine.Events.UnityAction action)
+    {
+        GameObject btnObj = FindChild(parent.gameObject, name);
+        if (btnObj == null)
+        {
+            btnObj = new GameObject(name);
+            btnObj.transform.SetParent(parent, false);
+            
+            Image img = btnObj.AddComponent<Image>();
+            
+            // ?¥Î?ÏßÄÍ∞Ä ?àÏúºÎ©??¥Î?ÏßÄ ?¨Ïö©, ?ÜÏúºÎ©??âÏÉÅ ?¨Ïö©
+            if (sprite != null)
+            {
+                img.sprite = sprite;
+                img.color = Color.white; // ?¥Î?ÏßÄÍ∞Ä ?àÏúºÎ©??∞ÏÉâ(?êÎ≥∏??
+                img.preserveAspect = true;
+                img.alphaHitTestMinimumThreshold = 0.1f; // [FIX] ?¨Î™Ö??Î∂ÄÎ∂??¥Î¶≠ Î¨¥Ïãú
+            }
+            else
+            {
+                img.color = bgColor;
+            }
+
+            Button btn = btnObj.AddComponent<Button>();
+
+            // ?çÏä§??(?¥Î?ÏßÄÍ∞Ä ?ÜÏùÑ ?åÎßå ?ùÏÑ±)
+            GameObject txtObj = FindChild(btnObj, "Text");
+            if (sprite == null)
+            {
+                if (txtObj == null)
+                {
+                    txtObj = new GameObject("Text");
+                    txtObj.transform.SetParent(btnObj.transform, false);
+                    TextMeshProUGUI txt = txtObj.AddComponent<TextMeshProUGUI>();
+                    txt.text = text;
+                    txt.fontSize = 40; 
+                    txt.alignment = TextAlignmentOptions.Center;
+                    txt.color = textColor; 
+                    txt.fontStyle = FontStyles.Bold | FontStyles.Italic;
+                    
+                    RectTransform txtRt = txtObj.GetComponent<RectTransform>();
+                    txtRt.anchorMin = Vector2.zero;
+                    txtRt.anchorMax = Vector2.one;
+                    txtRt.offsetMin = Vector2.zero;
+                    txtRt.offsetMax = Vector2.zero;
+                }
+            }
+            else
+            {
+                // ?¥Î?ÏßÄÍ∞Ä ?àÎäî???çÏä§???§Î∏å?ùÌä∏Í∞Ä ?®ÏïÑ?àÏúºÎ©???†ú (ÍπîÎÅî?òÍ≤å)
+                if (txtObj != null) DestroyImmediate(txtObj);
+            }
+
+            RectTransform rt = btnObj.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0.5f, 0.5f); 
+            rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = size; // ?¨Ïö©??ÏßÄ???¨Ïù¥Ï¶??ÅÏö©
+            rt.anchoredPosition = position;
+            
+            ColorBlock colors = btn.colors;
+            if (sprite == null)
+            {
+                colors.normalColor = bgColor;
+                colors.highlightedColor = bgColor + new Color(0.1f, 0.1f, 0.1f);
+                colors.pressedColor = bgColor - new Color(0.1f, 0.1f, 0.1f);
+                colors.selectedColor = bgColor;
+            }
+            else
+            {
+                colors.normalColor = Color.white;
+                colors.highlightedColor = new Color(0.9f, 0.9f, 0.9f);
+                colors.pressedColor = new Color(0.7f, 0.7f, 0.7f);
+                colors.selectedColor = Color.white;
+            }
+            btn.colors = colors;
+        }
+        else
+        {
+            // ?¥Î? Ï°¥Ïû¨?????ÖÎç∞?¥Ìä∏ Î°úÏßÅ
+            Image img = btnObj.GetComponent<Image>();
+            GameObject txtObj = FindChild(btnObj, "Text");
+
+            if (sprite != null)
+            {
+                img.sprite = sprite;
+                img.color = Color.white;
+                img.preserveAspect = true;
+                img.alphaHitTestMinimumThreshold = 0.1f; // [FIX] ?¨Î™Ö??Î∂ÄÎ∂??¥Î¶≠ Î¨¥Ïãú
+                if (txtObj != null) DestroyImmediate(txtObj);
+            }
+            
+            // ?¨Ïù¥Ï¶??ÖÎç∞?¥Ìä∏
+            RectTransform rt = btnObj.GetComponent<RectTransform>();
+            if (rt != null) 
+            {
+                rt.sizeDelta = size;
+                rt.anchoredPosition = position; // [FIX] ?ÑÏπò??Í∞ôÏù¥ ?ÖÎç∞?¥Ìä∏
+            }
+
+            // Í∑∏Î¶º???ÑÏõÉ?ºÏù∏ ?úÍ±∞ (ÍπîÎÅî?òÍ≤å)
+            Shadow shadow = btnObj.GetComponent<Shadow>();
+            if (shadow != null) DestroyImmediate(shadow);
+            Outline outline = btnObj.GetComponent<Outline>();
+            if (outline != null) DestroyImmediate(outline);
+            
+            // ?∞Ì???Î¶¨Ïä§???¨Ïó∞Í≤?
+            Button btn = btnObj.GetComponent<Button>();
+            if (btn != null)
+            {
+                // [FIX] Î≤ÑÌäº ?âÏÉÅ ?ÅÌÉú??Í∞ôÏù¥ ?ÖÎç∞?¥Ìä∏?¥Ïïº ??
+                ColorBlock colors = btn.colors;
+                if (sprite != null)
+                {
+                    colors.normalColor = Color.white;
+                    colors.highlightedColor = new Color(0.9f, 0.9f, 0.9f);
+                    colors.pressedColor = new Color(0.7f, 0.7f, 0.7f);
+                    colors.selectedColor = Color.white;
+                }
+                else
+                {
+                    // ?¥Î?ÏßÄÍ∞Ä ?ÜÏúºÎ©?Î∞∞Í≤Ω???¨Ïö© (Í∏∞Ï°¥ Î°úÏßÅ ?†Ï? ?êÎäî ?ÖÎç∞?¥Ìä∏)
+                    // ?¨Í∏∞?úÎäî Íµ≥Ïù¥ Í±¥ÎìúÎ¶¨Ï? ?äÏïÑ???òÏ?Îß? ?ïÏã§?òÍ≤å ?òÎ†§Î©??ÖÎç∞?¥Ìä∏
+                }
+                btn.colors = colors;
+
+                btn.onClick.RemoveAllListeners();
+                btn.onClick.AddListener(action);
+            }
+        }
+        
+        // ?àÏ†Ñ?•Ïπò
+        Button buttonComponent = btnObj.GetComponent<Button>();
+        if (buttonComponent != null)
+        {
+            buttonComponent.onClick.RemoveAllListeners();
+            buttonComponent.onClick.AddListener(action);
+        }
+    }
+
+    private void Create3DBackground()
+    {
+        // Í∏∞Ï°¥???ùÏÑ±??3D Î∞∞Í≤Ω???àÎã§Î©???†ú (?ôÍµê Î™®Îç∏???£Í∏∞ ?ÑÌï¥ ÎπÑÏõå??
+        GameObject oldBg = GameObject.Find("Background3D");
+        if (oldBg != null)
+        {
+            DestroyImmediate(oldBg);
+        }
+        
+        // ?¨Í∏∞??school.fbxÎ•?Î∞∞Ïπò?òÏãúÎ©??©Îãà??
+    }
+
+    private GameObject FindChild(GameObject parent, string name)
+    {
+        Transform t = parent.transform.Find(name);
+        if (t != null) return t.gameObject;
+        return null;
+    }
+
+#if UNITY_EDITOR
+    private void MakeTextureReadable(Sprite sprite)
+    {
+        if (sprite == null) return;
+        try
+        {
+            string path = UnityEditor.AssetDatabase.GetAssetPath(sprite.texture);
+            UnityEditor.TextureImporter importer = UnityEditor.AssetImporter.GetAtPath(path) as UnityEditor.TextureImporter;
+            if (importer != null && !importer.isReadable)
+            {
+                importer.isReadable = true;
+                importer.SaveAndReimport();
+                Debug.Log($"[LobbyUIBuilder] Automatically enabled Read/Write for {sprite.name}");
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"Failed to set Read/Write: {e.Message}");
+        }
+    }
+#endif
+}
