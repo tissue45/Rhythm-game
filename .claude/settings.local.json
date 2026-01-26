@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(echo:*)",
+      "Bash(copy \"c:\\\\Users\\\\user\\\\Downloads\\\\Rhythm_game \\(2\\)\\\\Assets\\\\image\\\\sodapop.png\" \"c:\\\\Users\\\\user\\\\Downloads\\\\Rhythm_game \\(2\\)\\\\Assets\\\\Resources\\\\sodapop_cover.png\")"
+    ]
+  }
+}

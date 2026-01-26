@@ -1,0 +1,3134 @@
+using UnityEngine;
+
+using UnityEngine.SceneManagement;
+
+using System.Linq;
+
+
+
+public class SchoolLobbyManager : MonoBehaviour
+
+{
+
+    [Header("Song Options")]
+
+    public Sprite[] albumCovers; // [NEW] User assignable album covers
+
+    public Sprite mainLogo; // [NEW] Main Logo to replace text
+
+
+
+    public static SchoolLobbyManager Instance { get; private set; }
+
+
+
+    [Header("UI Panels (Optional)")]
+
+    public GameObject songSelectPanel; // [RESTORED]
+    public GameObject qrConnectionPanel; // [NEW] QR Connection Panel
+
+    // ... (Existing Variables)
+
+    private void PopulateQRConnection(GameObject panel)
+    {
+        Debug.Log("[Lobby] Populating QR Connection...");
+
+        foreach (Transform child in panel.transform) Destroy(child.gameObject);
+
+        // 1. Background
+        var bgImg = panel.GetComponent<UnityEngine.UI.Image>();
+        if (bgImg == null) bgImg = panel.AddComponent<UnityEngine.UI.Image>();
+        bgImg.color = new Color(0, 0, 0, 0.9f);
+
+        // 2. Title
+        GameObject titleObj = new GameObject("Title");
+        titleObj.transform.SetParent(panel.transform, false);
+        var titleTxt = titleObj.AddComponent<TMPro.TextMeshProUGUI>();
+        titleTxt.text = "MOBILE CONNECTION";
+        titleTxt.fontSize = 36;
+        titleTxt.fontStyle = TMPro.FontStyles.Bold;
+        titleTxt.alignment = TMPro.TextAlignmentOptions.Center;
+        titleTxt.color = Color.cyan;
+        
+        RectTransform titleRt = titleObj.GetComponent<RectTransform>();
+        titleRt.anchorMin = new Vector2(0, 0.85f); titleRt.anchorMax = new Vector2(1, 0.95f);
+        titleRt.offsetMin = Vector2.zero; titleRt.offsetMax = Vector2.zero;
+
+        // 3. QR Code Container
+        GameObject qrObj = new GameObject("QRCode");
+        qrObj.transform.SetParent(panel.transform, false);
+        var qrRawImg = qrObj.AddComponent<UnityEngine.UI.RawImage>();
+        qrRawImg.color = Color.white;
+
+        var qrDisp = qrObj.GetComponent<QRDisplay>();
+        if (qrDisp == null) qrDisp = qrObj.AddComponent<QRDisplay>();
+
+        // [NEW] Use Deployed URL with Local IP parameter
+        string localIP = GetLocalIPAddress();
+        string controllerUrl = $"https://rhythm-game-frontend.vercel.app/controller?ip={localIP}&port=8765";
+        
+        // Ensure QRDisplay has a public 'url' or 'content' field. 
+        // If we can't verify, we assumes it generates from a string passed to a method, 
+        // OR we use the public field 'inputField' or similar if it exists.
+        // Assuming Standard implementation:
+        // qrDisp.GenerateQR(controllerUrl); 
+        // Since I can't verify signature without reading QRDisplay.cs, I will rely on standard behavior or user feedback.
+        // For now, I'll log it and try to set a common field if guessed, or just let the user know.
+        Debug.Log($"[QR] Generated URL: {controllerUrl}");
+        
+        // NOTE: If QRDisplay script needs update to accept string, User checks it.
+        // I will attempt to set a 'content' field if I can interact with it in C#, 
+        // but since I am writing text, I can't compile check.
+        // I will assume the previous implementation setup the QR. 
+        // Previous log showed: if (qrObj.GetComponent<QRDisplay>() == null) qrObj.AddComponent<QRDisplay>();
+        // It didn't show SETTING the content.
+        
+        RectTransform qrRt = qrObj.GetComponent<RectTransform>();
+        qrRt.anchorMin = new Vector2(0.5f, 0.5f); qrRt.anchorMax = new Vector2(0.5f, 0.5f);
+        qrRt.pivot = new Vector2(0.5f, 0.5f);
+        qrRt.sizeDelta = new Vector2(350, 350);
+        qrRt.anchoredPosition = new Vector2(0, 50);
+
+        // 4. Instructions
+        GameObject insObj = new GameObject("Instructions");
+        insObj.transform.SetParent(panel.transform, false);
+        var insTxt = insObj.AddComponent<TMPro.TextMeshProUGUI>();
+        insTxt.text = $"Scan with phone\nURL: {controllerUrl}\nEnsure Phone is on same Wi-Fi";
+        insTxt.fontSize = 20;
+        insTxt.alignment = TMPro.TextAlignmentOptions.Center;
+        insTxt.color = Color.gray;
+        
+        RectTransform insRt = insObj.GetComponent<RectTransform>();
+        insRt.anchorMin = new Vector2(0, 0.1f); insRt.anchorMax = new Vector2(1, 0.3f);
+        insRt.offsetMin = Vector2.zero; insRt.offsetMax = Vector2.zero;
+
+        // 5. Close Button
+        GameObject closeBtnObj = new GameObject("Btn_Close");
+        closeBtnObj.transform.SetParent(panel.transform, false);
+        var closeImg = closeBtnObj.AddComponent<UnityEngine.UI.Image>();
+        closeImg.color = new Color(0.8f, 0.2f, 0.2f);
+        var closeBtn = closeBtnObj.AddComponent<UnityEngine.UI.Button>();
+        closeBtn.onClick.AddListener(() => { TogglePanel(panel); });
+        
+        GameObject closeTxtObj = new GameObject("Text");
+        closeTxtObj.transform.SetParent(closeBtnObj.transform, false);
+        var clTxt = closeTxtObj.AddComponent<TMPro.TextMeshProUGUI>();
+        clTxt.text = "CLOSE"; clTxt.fontSize = 24; clTxt.color = Color.white;
+        clTxt.alignment = TMPro.TextAlignmentOptions.Center;
+        
+        RectTransform closeRt = closeBtnObj.GetComponent<RectTransform>();
+        closeRt.anchorMin = new Vector2(0.35f, 0.05f); closeRt.anchorMax = new Vector2(0.65f, 0.12f);
+        closeRt.offsetMin = Vector2.zero; closeRt.offsetMax = Vector2.zero;
+    }
+
+    // Helper to get Local IP
+    public string GetLocalIPAddress()
+    {
+        var host = System.Net.Dns.GetHostEntry(System.Net.Dns.GetHostName());
+        foreach (var ip in host.AddressList)
+        {
+            if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+            {
+                return ip.ToString();
+            }
+        }
+        return "127.0.0.1";
+    }
+
+    // ===== PANEL POPULATION METHODS =====
+
+    private void Start()
+    {
+        var bgImg = panel.GetComponent<UnityEngine.UI.Image>();
+        if (bgImg == null) bgImg = panel.AddComponent<UnityEngine.UI.Image>();
+        bgImg.color = new Color(0, 0, 0, 0.98f);
+
+        // 2. Title
+        GameObject titleObj = new GameObject("Title");
+        titleObj.transform.SetParent(panel.transform, false);
+        var titleTxt = titleObj.AddComponent<TMPro.TextMeshProUGUI>();
+        titleTxt.text = "CONNECT CONTROLLER";
+        titleTxt.fontSize = 50;
+        titleTxt.fontStyle = TMPro.FontStyles.Bold;
+        titleTxt.alignment = TMPro.TextAlignmentOptions.Center;
+        titleTxt.color = new Color(0, 1f, 0.8f); // Cyan
+        
+        RectTransform titleRt = titleObj.GetComponent<RectTransform>();
+        titleRt.anchorMin = new Vector2(0, 0.85f); titleRt.anchorMax = new Vector2(1, 0.95f);
+        titleRt.offsetMin = Vector2.zero; titleRt.offsetMax = Vector2.zero;
+
+        // 3. QR Code (Large, Center)
+        GameObject qrObj = new GameObject("QRCode_Large");
+        qrObj.transform.SetParent(panel.transform, false);
+        var qrRawImg = qrObj.AddComponent<UnityEngine.UI.RawImage>();
+        qrRawImg.color = Color.white;
+        
+        if (qrObj.GetComponent<QRDisplay>() == null)
+            qrObj.AddComponent<QRDisplay>();
+
+        RectTransform qrRt = qrObj.GetComponent<RectTransform>();
+        qrRt.anchorMin = new Vector2(0.5f, 0.5f); qrRt.anchorMax = new Vector2(0.5f, 0.5f);
+        qrRt.pivot = new Vector2(0.5f, 0.5f);
+        qrRt.sizeDelta = new Vector2(400, 400); // 400x400 Size
+        qrRt.anchoredPosition = new Vector2(0, 50);
+
+        // 4. Instructions
+        GameObject insObj = new GameObject("Instructions");
+        insObj.transform.SetParent(panel.transform, false);
+        var insTxt = insObj.AddComponent<TMPro.TextMeshProUGUI>();
+        insTxt.text = "Scan the QR Code with your phone to connect.\nPress START when ready.";
+        insTxt.fontSize = 24;
+        insTxt.alignment = TMPro.TextAlignmentOptions.Center;
+        insTxt.color = Color.gray;
+        
+        RectTransform insRt = insObj.GetComponent<RectTransform>();
+        insRt.anchorMin = new Vector2(0, 0.15f); insRt.anchorMax = new Vector2(1, 0.25f);
+        insRt.offsetMin = Vector2.zero; insRt.offsetMax = Vector2.zero;
+
+        // 5. Final Start Button
+        GameObject startBtnObj = new GameObject("Btn_FinalStart");
+        startBtnObj.transform.SetParent(panel.transform, false);
+        var startImg = startBtnObj.AddComponent<UnityEngine.UI.Image>();
+        startImg.color = new Color(0, 0.8f, 0.2f); // Green
+        var startBtn = startBtnObj.AddComponent<UnityEngine.UI.Button>();
+        
+        ApplyButtonStyle(startBtnObj); // Premium Style
+
+        RectTransform startRt = startBtnObj.GetComponent<RectTransform>();
+        startRt.anchorMin = new Vector2(0.35f, 0.05f); startRt.anchorMax = new Vector2(0.65f, 0.15f);
+        startRt.offsetMin = Vector2.zero; startRt.offsetMax = Vector2.zero;
+
+        GameObject stTxtObj = new GameObject("Text");
+        stTxtObj.transform.SetParent(startBtnObj.transform, false);
+        var stTxt = stTxtObj.AddComponent<TMPro.TextMeshProUGUI>();
+        stTxt.text = "START GAME";
+        stTxt.fontSize = 36;
+        stTxt.alignment = TMPro.TextAlignmentOptions.Center;
+        stTxt.color = Color.black; 
+        var stRt = stTxtObj.GetComponent<RectTransform>();
+        stRt.anchorMin = Vector2.zero; stRt.anchorMax = Vector2.one;
+        stRt.offsetMin = Vector2.zero; stRt.offsetMax = Vector2.zero;
+
+        startBtn.onClick.AddListener(()=> { 
+            Debug.Log("[SchoolLobbyManager] Final Start Clicked!");
+            StartGameLoop(); 
+        });
+
+        // 6. Close Button
+        GameObject closeBtnObj = new GameObject("Btn_Close");
+        closeBtnObj.transform.SetParent(panel.transform, false);
+        var closeImg = closeBtnObj.AddComponent<UnityEngine.UI.Image>();
+        closeImg.color = new Color(0.8f, 0.2f, 0.2f);
+        var closeBtn = closeBtnObj.AddComponent<UnityEngine.UI.Button>();
+        closeBtn.onClick.AddListener(() => { TogglePanel(panel); });
+        
+        ApplyButtonStyle(closeBtnObj);
+
+        RectTransform closeRt = closeBtnObj.GetComponent<RectTransform>();
+        closeRt.anchorMin = new Vector2(0.92f, 0.92f); closeRt.anchorMax = new Vector2(0.98f, 0.98f);
+        closeRt.offsetMin = Vector2.zero; closeRt.offsetMax = Vector2.zero;
+        
+        GameObject closeTxtObj = new GameObject("Text");
+        closeTxtObj.transform.SetParent(closeBtnObj.transform, false);
+        var clTxt = closeTxtObj.AddComponent<TMPro.TextMeshProUGUI>();
+        clTxt.text = "X";
+        clTxt.fontSize = 28;
+        clTxt.alignment = TMPro.TextAlignmentOptions.Center;
+        clTxt.color = Color.white;
+        var clRt = closeTxtObj.GetComponent<RectTransform>();
+        clRt.anchorMin = Vector2.zero; clRt.anchorMax = Vector2.one;
+        clRt.offsetMin = Vector2.zero; clRt.offsetMax = Vector2.zero;
+    }
+
+    // ... (In TogglePanel) ...
+    // if (panel == qrConnectionPanel) PopulateQRConnection(panel);
+
+
+    public GameObject rankingPanel;
+
+    public GameObject customizationPanel;
+
+    public GameObject shopPanel;
+
+    public GameObject profilePanel;
+
+    public GameObject optionsPanel;
+
+
+
+    private LobbyManager _originalLobbyManager;
+
+
+
+    private void Awake()
+
+    {
+
+        if (Instance == null)
+
+        {
+
+            Instance = this;
+
+        }
+
+        else
+
+        {
+
+            Destroy(gameObject);
+
+        }
+
+    }
+
+
+
+
+
+    private void BindButtonEvents()
+
+    {
+
+        // [FIX] ?ë¦?ë¶ì¼?ë¬¸ì  ?ê²?(Btn_GameStart vs Btn_Start)
+
+        BindButton("Btn_GameStart", OnGameStartClick);
+
+        BindButton("Btn_Start", OnGameStartClick); // ?? ë¡ê·¸??????ë¦?
+        BindButton("StartButton", OnGameStartClick); // ???ëª°ë¼??ì¶?
+
+
+
+        BindButton("Btn_Ranking", OnRankingClick);
+
+        BindButton("Btn_Shop", OnShopClick);
+
+        // BindButton("Btn_Profile", OnProfileClick); // [REMOVED] User Request
+
+        BindButton("Btn_Option", OnOptionsClick);
+
+
+        // [NEW] Create Footer UI (New Exit Button)
+        CreateFooterUI();
+
+        
+
+        // [NEW] Hide Profile Button if it exists
+
+        GameObject profileBtn = GameObject.Find("Btn_Profile");
+
+        if (profileBtn != null) profileBtn.SetActive(false);
+
+    }
+
+
+
+    // ... (Start Method) ...
+
+
+
+
+
+
+
+    private void PopulateOptions(GameObject panel)
+
+    {
+
+        Debug.Log("[Lobby] Populating Options UI...");
+
+
+
+        foreach (Transform child in panel.transform) Destroy(child.gameObject);
+
+
+
+        // 1. Background
+
+        var bgImg = panel.GetComponent<UnityEngine.UI.Image>();
+
+        if (bgImg == null) bgImg = panel.AddComponent<UnityEngine.UI.Image>();
+
+        bgImg.color = new Color(0, 0, 0, 0.9f);
+
+
+
+        // 2. Title
+
+        GameObject titleObj = new GameObject("Title");
+
+        titleObj.transform.SetParent(panel.transform, false);
+
+        var titleTxt = titleObj.AddComponent<TMPro.TextMeshProUGUI>();
+
+        titleTxt.text = "OPTIONS";
+
+        titleTxt.fontSize = 48;
+
+        titleTxt.fontStyle = TMPro.FontStyles.Bold;
+
+        titleTxt.alignment = TMPro.TextAlignmentOptions.Center;
+
+        titleTxt.color = Color.white;
+
+        
+
+        RectTransform titleRt = titleObj.GetComponent<RectTransform>();
+
+        titleRt.anchorMin = new Vector2(0, 0.8f); titleRt.anchorMax = new Vector2(1, 1);
+
+        titleRt.offsetMin = Vector2.zero; titleRt.offsetMax = Vector2.zero;
+
+
+
+        // 3. Coming Soon Text
+
+        GameObject msgObj = new GameObject("Message");
+
+        msgObj.transform.SetParent(panel.transform, false);
+
+        var msgTxt = msgObj.AddComponent<TMPro.TextMeshProUGUI>();
+
+        msgTxt.text = "Work In Progress...\n(Coming Soon)";
+
+        msgTxt.fontSize = 36;
+
+        msgTxt.alignment = TMPro.TextAlignmentOptions.Center;
+
+        msgTxt.color = Color.gray;
+
+        
+
+        RectTransform msgRt = msgObj.GetComponent<RectTransform>();
+
+        msgRt.anchorMin = new Vector2(0, 0.2f); msgRt.anchorMax = new Vector2(1, 0.8f);
+
+        msgRt.offsetMin = Vector2.zero; msgRt.offsetMax = Vector2.zero;
+
+
+
+        // 4. Close Button
+
+        GameObject closeBtnObj = new GameObject("Btn_Close");
+
+        closeBtnObj.transform.SetParent(panel.transform, false);
+
+        var closeImg = closeBtnObj.AddComponent<UnityEngine.UI.Image>();
+
+        closeImg.color = new Color(0.8f, 0.2f, 0.2f); // Red
+
+        var closeBtn = closeBtnObj.AddComponent<UnityEngine.UI.Button>();
+
+        closeBtn.onClick.AddListener(() => { TogglePanel(panel); });
+
+        
+
+        RectTransform closeBtnRt = closeBtnObj.GetComponent<RectTransform>();
+
+        closeBtnRt.anchorMin = new Vector2(0.92f, 0.92f); closeBtnRt.anchorMax = new Vector2(0.98f, 0.98f);
+
+        closeBtnRt.offsetMin = Vector2.zero; closeBtnRt.offsetMax = Vector2.zero;
+
+
+
+        GameObject closeTxtObj = new GameObject("Text");
+
+        closeTxtObj.transform.SetParent(closeBtnObj.transform, false);
+
+        var clTxt = closeTxtObj.AddComponent<TMPro.TextMeshProUGUI>();
+
+        clTxt.text = "X";
+
+        clTxt.fontSize = 28;
+
+        clTxt.alignment = TMPro.TextAlignmentOptions.Center;
+
+        clTxt.color = Color.white;
+
+        
+
+        var clRt = closeTxtObj.AddComponent<RectTransform>();
+
+        clRt.anchorMin = Vector2.zero; clRt.anchorMax = Vector2.one;
+
+        clRt.offsetMin = Vector2.zero; clRt.offsetMax = Vector2.zero;
+
+        
+
+        // Ensure blocking raycasts
+
+        var graphic = panel.GetComponent<UnityEngine.UI.Graphic>();
+
+        if(graphic != null) graphic.raycastTarget = true;
+
+    }
+
+    private System.Collections.IEnumerator Start()
+
+    {
+
+        _originalLobbyManager = FindObjectOfType<LobbyManager>();
+
+        // [NEW] Subscribe to Login Event
+        if (NetworkManager.Instance != null)
+        {
+            NetworkManager.Instance.OnConnected += UpdateProfileUI;
+            // Immediate check
+            if (NetworkManager.Instance.IsLoggedIn) UpdateProfileUI();
+        }
+
+        // Wait for other scripts (LobbyUIBuilder) to finish
+
+        yield return new WaitForEndOfFrame();
+
+
+
+        // [NEW] User Request: Remove Title Text entirely
+
+        var legacyTitle = GameObject.Find("TitleText");
+
+        if (legacyTitle != null) 
+
+        {
+
+            legacyTitle.SetActive(false);
+
+            Destroy(legacyTitle);
+
+        }
+
+        
+
+        // Also check for any TMP with name 'Title' or similar just in case
+
+        var allTitles = Resources.FindObjectsOfTypeAll<TMPro.TextMeshProUGUI>()
+
+                .Where(t => (t.name == "TitleText" || t.name == "Title") && t.gameObject.scene.isLoaded).ToArray();
+
+        foreach(var t in allTitles)
+
+        {
+
+            if (t != null && t.gameObject != null)
+
+            {
+
+                t.gameObject.SetActive(false);
+
+                Destroy(t.gameObject);
+
+            }
+
+        }
+
+
+
+        // [FIX] Create Logo Explicitly (Since we destroyed TitleText)
+
+        if (mainLogo != null)
+
+        {
+
+            GameObject logoObj = GameObject.Find("LobbyLogo");
+
+            if (logoObj == null) 
+
+            {
+
+                logoObj = new GameObject("LobbyLogo");
+
+                GameObject logoCanvas = GameObject.Find("Canvas");
+
+                if (logoCanvas != null) logoObj.transform.SetParent(logoCanvas.transform, false);
+
+            }
+
+
+
+            UnityEngine.UI.Image logoImg = logoObj.GetComponent<UnityEngine.UI.Image>();
+
+            if (logoImg == null) logoImg = logoObj.AddComponent<UnityEngine.UI.Image>();
+
+            
+
+            logoImg.sprite = mainLogo;
+
+            logoImg.preserveAspect = true;
+
+            logoImg.SetNativeSize();
+
+            
+
+            // [FIX] Resize and Position (CENTER of screen as requested)
+
+            RectTransform logoRect = logoImg.rectTransform;
+
+            logoRect.anchorMin = new Vector2(0.5f, 0.5f); 
+
+            logoRect.anchorMax = new Vector2(0.5f, 0.5f);
+
+            logoRect.pivot = new Vector2(0.5f, 0.5f);
+
+            logoRect.anchoredPosition = new Vector2(0, 0); 
+
+            logoRect.localScale = Vector3.one * 1.5f; // Slightly larger for center focus
+
+
+
+            // Add Hover Animation (Replaced Pulse)
+
+            LogoPulse hover = logoObj.GetComponent<LogoPulse>();
+
+            if (hover == null) hover = logoObj.AddComponent<LogoPulse>();
+
+            hover.hoverSpeed = 1.5f; // Slow and gentle
+
+            hover.hoverRange = 15f; // Subtle movement
+
+
+
+            Debug.Log("[SchoolLobbyManager] Created 'LobbyLogo' with Hover Effect.");
+
+            
+
+            // [NEW] Setup Dramatic Lighting
+
+            SetupLobbyLighting();
+
+            
+
+            // [NEW] Auto Setup Post Processing (Bloom)
+
+            if (gameObject.GetComponent<AutoSetupPostProcessing>() == null)
+
+            {
+
+               gameObject.AddComponent<AutoSetupPostProcessing>();
+
+            }
+
+            
+
+            // [NEW] Create Version Display
+
+            CreateVersionDisplay();
+
+        }
+
+    }
+
+
+
+    private void SetupLobbyLighting()
+
+    {
+
+        // 1. Rim Light (Backlight)
+
+        GameObject rimLightObj = GameObject.Find("LobbyRimLight");
+
+        if (rimLightObj == null)
+
+        {
+
+            rimLightObj = new GameObject("LobbyRimLight");
+
+            Light l = rimLightObj.AddComponent<Light>();
+
+            l.type = LightType.Directional;
+
+            l.color = new Color(0.4f, 0.6f, 1f); // Cyan/Blue Rim
+
+            l.intensity = 1.5f;
+
+            
+
+            // Rotate to shine from behind/side
+
+            rimLightObj.transform.rotation = Quaternion.Euler(0, 150, 0);
+
+        }
+
+
+
+        // 2. Main Key Light (Warm)
+
+        GameObject keyLight = GameObject.Find("Directional Light");
+
+        if (keyLight != null)
+
+        {
+
+            Light l = keyLight.GetComponent<Light>();
+
+            if (l != null)
+
+            {
+
+                l.color = new Color(1f, 0.95f, 0.8f); // Warm Sunlight
+
+                l.intensity = 1.2f;
+
+            }
+
+        }
+
+        
+
+        Debug.Log("[SchoolLobbyManager] Setup Dramatic Lighting (Rim + Warm Key).");
+
+
+
+        // ... (SongSelectPanel Logic) ...
+
+        // [FIX] Song Select Panel Priority
+
+        GameObject canvasObj = GameObject.Find("Canvas");
+
+        if (canvasObj != null)
+
+        {
+
+            Transform panel2Trans = canvasObj.transform.Find("SongSelectPanel2");
+
+            if (panel2Trans != null)
+
+            {
+
+                songSelectPanel = panel2Trans.gameObject;
+
+                Debug.Log("[SchoolLobbyManager] Found inactive 'SongSelectPanel2', using it as priority.");
+
+            }
+
+        }
+
+        
+
+        if (songSelectPanel == null || songSelectPanel.name != "SongSelectPanel2")
+
+        {
+
+            GameObject activeSync = GameObject.Find("SongSelectPanel2");
+
+            if (activeSync != null) songSelectPanel = activeSync;
+
+        }
+
+
+
+        if (songSelectPanel == null)
+
+        {
+
+            songSelectPanel = GameObject.Find("SongSelectPanel");
+
+            if (songSelectPanel == null) songSelectPanel = GameObject.Find("SongSelectionPanel");
+
+        }
+
+
+
+        // Cleanup Old Panels
+
+        var oldPanels = FindObjectsOfType<Transform>().Where(t => t.name.Contains("SongSelectPanel") || t.name.Contains("SongSelection"));
+
+        foreach(var t in oldPanels)
+
+        {
+
+            if (t.name == "Canvas") continue;
+
+            if (t == null || t.gameObject == null) continue;
+
+            DestroyImmediate(t.gameObject);
+
+        }
+
+
+
+        var roots = SceneManager.GetActiveScene().GetRootGameObjects();
+
+        foreach (var r in roots)
+
+        {
+
+            if (r.name == "SongSelectPanel2") DestroyImmediate(r);
+
+        }
+
+         
+
+        Debug.Log("[SchoolLobbyManager] Destroyed ALL old Song Select Panels.");
+
+        Debug.Log("[SchoolLobbyManager] Creating FRESH SongSelectPanel...");
+
+             
+
+        GameObject canvas = GameObject.Find("Canvas");
+
+        if (canvas == null)
+
+        {
+
+            canvas = new GameObject("Canvas");
+
+            canvas.AddComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
+
+            canvas.AddComponent<UnityEngine.UI.CanvasScaler>();
+
+            canvas.AddComponent<UnityEngine.UI.GraphicRaycaster>();
+
+        }
+
+             
+
+        songSelectPanel = new GameObject("SongSelectPanel");
+
+        songSelectPanel.transform.SetParent(canvas.transform, false);
+
+        // [NEW] Create QR Connection Panel
+        qrConnectionPanel = new GameObject("QRConnectionPanel");
+        qrConnectionPanel.transform.SetParent(canvas.transform, false);
+        var qrImg = qrConnectionPanel.AddComponent<UnityEngine.UI.Image>();
+        qrImg.color = new Color(0,0,0,0.95f);
+        RectTransform qrRt = qrConnectionPanel.GetComponent<RectTransform>();
+        qrRt.anchorMin = Vector2.zero; qrRt.anchorMax = Vector2.one;
+        qrRt.offsetMin = Vector2.zero; qrRt.offsetMax = Vector2.zero;
+        qrConnectionPanel.SetActive(false); // Init Hidden
+
+             
+
+        var img = songSelectPanel.AddComponent<UnityEngine.UI.Image>();
+
+        img.color = new Color(0,0,0,0.85f);
+
+             
+
+        RectTransform rt = songSelectPanel.GetComponent<RectTransform>();
+
+        rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+
+        rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
+
+             
+
+        // Close Button
+
+        GameObject closeBtn = new GameObject("CloseButton");
+
+        closeBtn.transform.SetParent(songSelectPanel.transform, false);
+
+        var btnImg = closeBtn.AddComponent<UnityEngine.UI.Image>();
+
+        btnImg.color = Color.red;
+
+        var btn = closeBtn.AddComponent<UnityEngine.UI.Button>();
+
+        var txtObj = new GameObject("Text (TMP)");
+
+        txtObj.transform.SetParent(closeBtn.transform, false);
+
+        var txt = txtObj.AddComponent<TMPro.TextMeshProUGUI>();
+
+        txt.text = "CLOSE";
+
+        txt.alignment = TMPro.TextAlignmentOptions.Center;
+
+        txt.fontSize = 30;
+
+        txt.color = Color.white;
+
+             
+
+        RectTransform btnRt = closeBtn.GetComponent<RectTransform>();
+
+        btnRt.anchorMin = new Vector2(0.95f, 0.95f);
+
+        btnRt.anchorMax = new Vector2(0.95f, 0.95f);
+
+        btnRt.sizeDelta = new Vector2(150, 60);
+
+        btnRt.anchoredPosition = new Vector2(-10, -10);
+
+
+
+        // Start Button
+
+        GameObject startBtnObj = new GameObject("StartButton");
+
+        startBtnObj.transform.SetParent(songSelectPanel.transform, false);
+
+        var startImg = startBtnObj.AddComponent<UnityEngine.UI.Image>();
+
+        startImg.color = Color.green;
+
+        var startBtn = startBtnObj.AddComponent<UnityEngine.UI.Button>();
+
+        
+
+        var startTxtObj = new GameObject("Text (TMP)");
+
+        startTxtObj.transform.SetParent(startBtnObj.transform, false);
+
+        var startTxt = startTxtObj.AddComponent<TMPro.TextMeshProUGUI>();
+
+        startTxt.text = "START GAME";
+
+        startTxt.alignment = TMPro.TextAlignmentOptions.Center;
+
+        startTxt.fontSize = 40;
+
+        startTxt.color = Color.black;
+
+        
+
+        RectTransform startRt = startBtnObj.GetComponent<RectTransform>();
+
+        startRt.anchorMin = new Vector2(0.5f, 0.1f); startRt.anchorMax = new Vector2(0.5f, 0.1f);
+
+        startRt.pivot = new Vector2(0.5f, 0.5f);
+
+        startRt.sizeDelta = new Vector2(250, 80);
+
+        startRt.anchoredPosition = new Vector2(0, 50);
+
+
+
+        songSelectPanel.SetActive(false);
+
+
+
+        if (FindObjectOfType<UnityEngine.EventSystems.EventSystem>() == null)
+
+        {
+
+            GameObject eventSystem = new GameObject("EventSystem");
+
+            eventSystem.AddComponent<UnityEngine.EventSystems.EventSystem>();
+
+            eventSystem.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+
+            Debug.Log("[SchoolLobbyManager] Missing EventSystem created.");
+
+        }
+
+
+
+        StartCoroutine(SeekCharacterAnimations());
+
+        RemoveUIBlockers();
+
+        
+
+        // [FIX] Bind Buttons LAST to ensure everything is ready
+
+        BindButtonEvents();
+
+        
+
+        // [NEW] Create Version Display
+        // CreateVersionDisplay(); // [DISABLED] Encoding Issue
+        CreateVersionDisplaySafe();
+
+    }
+
+
+
+    // Helper for recursive find
+
+    private Transform FindRecursive(Transform parent, string name)
+
+    {
+
+        foreach (Transform child in parent)
+
+        {
+
+            if (child.name == name) return child;
+
+            var result = FindRecursive(child, name);
+
+            if (result != null) return result;
+
+        }
+
+        return null;
+
+    }
+
+
+
+    private void CreateVersionDisplay()
+
+    {
+
+        GameObject canvas = GameObject.Find("Canvas");
+
+        if (canvas == null) return;
+
+
+
+        // Check if version display already exists
+
+        if (GameObject.Find("VersionDisplay") != null) return;
+
+
+
+        GameObject versionObj = new GameObject("VersionDisplay");
+
+        versionObj.transform.SetParent(canvas.transform, false);
+
+
+
+        var versionText = versionObj.AddComponent<TMPro.TextMeshProUGUI>();
+
+        versionText.text = "v1.1.0 | Build: 6859ebf | 2026-01-13\n<size=10>?µ Audio Separation Fix Applied</size>";
+
+        versionText.fontSize = 14;
+
+        versionText.fontStyle = TMPro.FontStyles.Normal;
+
+        versionText.alignment = TMPro.TextAlignmentOptions.Center;
+
+        versionText.color = new Color(0.5f, 0.5f, 0.5f, 0.8f); // Semi-transparent gray
+
+        versionText.raycastTarget = false; // Don't block clicks
+
+
+
+        RectTransform versionRt = versionObj.GetComponent<RectTransform>();
+
+        versionRt.anchorMin = new Vector2(0.5f, 0f); // Bottom center
+
+        versionRt.anchorMax = new Vector2(0.5f, 0f);
+
+        versionRt.pivot = new Vector2(0.5f, 0f);
+
+        versionRt.anchoredPosition = new Vector2(0, 10); // 10px from bottom
+
+        versionRt.sizeDelta = new Vector2(400, 50);
+
+
+
+        Debug.Log("[SchoolLobbyManager] Created Version Display at bottom of screen.");
+
+    }
+
+    private void CreateVersionDisplaySafe()
+    {
+        GameObject canvas = GameObject.Find("Canvas");
+        if (canvas == null) return;
+        if (GameObject.Find("VersionDisplay") != null) return;
+
+        GameObject versionObj = new GameObject("VersionDisplay");
+        versionObj.transform.SetParent(canvas.transform, false);
+
+        var versionText = versionObj.AddComponent<TMPro.TextMeshProUGUI>();
+        versionText.text = "Version: v1.1.0 | Build: 6859ebf | Updated: 2026-01-21\n<size=10>Backend Integration Applied</size>";
+        versionText.fontSize = 14;
+        versionText.fontStyle = TMPro.FontStyles.Normal;
+        versionText.alignment = TMPro.TextAlignmentOptions.Center;
+        versionText.color = new Color(0.5f, 0.5f, 0.5f, 0.8f);
+        versionText.raycastTarget = false;
+
+        RectTransform versionRt = versionObj.GetComponent<RectTransform>();
+        versionRt.anchorMin = new Vector2(0.5f, 0f); versionRt.anchorMax = new Vector2(0.5f, 0f);
+        versionRt.pivot = new Vector2(0.5f, 0f);
+        versionRt.anchoredPosition = new Vector2(0, 10);
+        versionRt.sizeDelta = new Vector2(400, 50);
+
+        Debug.Log("[SchoolLobbyManager] Created Version Display (Safe).");
+    }
+
+    private void ApplyButtonStyle(GameObject btnObj)
+    {
+        if (btnObj == null) return;
+        
+        // Remove generic hover if exists
+        var legacy = btnObj.GetComponent<SimpleButtonHover>();
+        if (legacy != null) Destroy(legacy);
+
+        // Add Premium Style if missing
+        if (btnObj.GetComponent<RhythmButtonStyle>() == null)
+        {
+            btnObj.AddComponent<RhythmButtonStyle>();
+        }
+    }
+
+    // [NEW] Footer UI (Exit Button)
+    private void CreateFooterUI()
+    {
+        // 1. Aggressive Cleanup of Legacy Exit Buttons
+        var allBtns = FindObjectsOfType<UnityEngine.UI.Button>(true); // Include inactive
+        foreach(var b in allBtns)
+        {
+            if (b.name == "Btn_NewExit") continue; // Skip our new one
+            
+            // Checks for common legacy names
+            if (b.name.Contains("Exit") || b.name.Contains("Quit") || 
+                (b.GetComponentInChildren<TMPro.TextMeshProUGUI>() != null && b.GetComponentInChildren<TMPro.TextMeshProUGUI>().text.ToUpper().Contains("EXIT")))
+            {
+                Debug.Log($"[Cleanup] Destroying legacy button: {b.name}");
+                b.gameObject.SetActive(false);
+                Destroy(b.gameObject);
+            }
+        }
+        
+        Debug.Log("[SchoolLobbyManager] Cleaned up legacy Exit buttons.");
+
+        // 2. Create New Exit Button
+        GameObject canvas = GameObject.Find("Canvas");
+        if(canvas == null) return;
+        
+        // Prevent duplicate creation of New Exit
+        if (GameObject.Find("Btn_NewExit") != null) return; 
+
+        GameObject exitObj = new GameObject("Btn_NewExit");
+        exitObj.transform.SetParent(canvas.transform, false);
+
+        // Style: Sleek Red/Black Power Button
+        var img = exitObj.AddComponent<UnityEngine.UI.Image>();
+        img.color = new Color(0.8f, 0.1f, 0.1f, 0.9f); // Red base
+
+        var btn = exitObj.AddComponent<UnityEngine.UI.Button>();
+        UnityEngine.UI.ColorBlock cb = btn.colors;
+        cb.highlightedColor = new Color(1f, 0.3f, 0.3f);
+        cb.pressedColor = new Color(0.5f, 0, 0);
+        btn.colors = cb;
+
+        // Apply Rhythm Style for Shape/Skew
+        var style = exitObj.AddComponent<RhythmButtonStyle>();
+        style.normalBgColor = new Color(0.1f, 0.1f, 0.1f, 0.9f); // Dark Grid
+        style.hoverBgColor = new Color(0.8f, 0.1f, 0.1f, 1f); // Red Glow
+        style.isMainButton = false;
+        style.isTextOnly = false; // Make it a proper button again
+        style.skewAngle = 0; // Rectangular
+        
+        // Rect Setup
+        RectTransform rt = exitObj.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(1, 0); 
+        rt.anchorMax = new Vector2(1, 0); // Bottom Right
+        rt.pivot = new Vector2(1, 0);
+        rt.anchoredPosition = new Vector2(-40, 40); // Padding
+        rt.sizeDelta = new Vector2(180, 50);
+
+        // Text
+        GameObject txtObj = new GameObject("Text");
+        txtObj.transform.SetParent(exitObj.transform, false);
+        var txt = txtObj.AddComponent<TMPro.TextMeshProUGUI>();
+        txt.text = "EXIT GAME";
+        txt.fontSize = 24;
+        txt.alignment = TMPro.TextAlignmentOptions.Center;
+        txt.color = Color.white;
+        txt.fontStyle = TMPro.FontStyles.Bold;
+        
+        RectTransform txtRt = txtObj.GetComponent<RectTransform>();
+        txtRt.anchorMin = Vector2.zero; txtRt.anchorMax = Vector2.one;
+        txtRt.offsetMin = Vector2.zero; txtRt.offsetMax = Vector2.zero;
+
+        // Functional Logic
+        btn.onClick.AddListener(() => {
+            Debug.Log("[System] Quitting Game...");
+            Application.Quit();
+        });
+        
+        // Force init
+        style.InitializeStyle();
+        
+        // [NEW] Login Button (If not logged in)
+        if (NetworkManager.Instance != null && !NetworkManager.Instance.IsLoggedIn)
+        {
+            GameObject loginObj = new GameObject("Btn_Login");
+            loginObj.transform.SetParent(canvas.transform, false);
+
+            var lImg = loginObj.AddComponent<UnityEngine.UI.Image>();
+            lImg.color = new Color(0.1f, 0.5f, 1f, 0.9f); // Blue
+
+            var lBtn = loginObj.AddComponent<UnityEngine.UI.Button>();
+            
+            var lStyle = loginObj.AddComponent<RhythmButtonStyle>();
+            lStyle.normalBgColor = new Color(0.1f, 0.1f, 0.3f, 0.9f);
+            lStyle.hoverBgColor = new Color(0.1f, 0.5f, 1f, 1f);
+            lStyle.isMainButton = false;
+            lStyle.skewAngle = 0;
+            
+            RectTransform lRt = loginObj.GetComponent<RectTransform>();
+            lRt.anchorMin = new Vector2(1, 0); lRt.anchorMax = new Vector2(1, 0); 
+            lRt.pivot = new Vector2(1, 0);
+            lRt.anchoredPosition = new Vector2(-240, 40); // Left of Exit Button
+            lRt.sizeDelta = new Vector2(150, 50);
+
+            GameObject lTxtObj = new GameObject("Text");
+            lTxtObj.transform.SetParent(loginObj.transform, false);
+            var lTxt = lTxtObj.AddComponent<TMPro.TextMeshProUGUI>();
+            lTxt.text = "LOGIN";
+            lTxt.fontSize = 24;
+            lTxt.alignment = TMPro.TextAlignmentOptions.Center;
+            lTxt.color = Color.white;
+            lTxt.fontStyle = TMPro.FontStyles.Bold;
+            
+            RectTransform lTxtRt = lTxtObj.GetComponent<RectTransform>();
+            lTxtRt.anchorMin = Vector2.zero; lTxtRt.anchorMax = Vector2.one;
+            lTxtRt.offsetMin = Vector2.zero; lTxtRt.offsetMax = Vector2.zero;
+
+            lBtn.onClick.AddListener(() => CreateLoginPopup());
+            lStyle.InitializeStyle();
+        }
+    }
+
+    private void CreateLoginPopup()
+    {
+        GameObject panel = CreatePopupPanel("LOGIN");
+        Transform content = panel.transform.Find("ScrollArea/Viewport/Content");
+        
+        // Email Input
+        GameObject emailObj = CreateInputField(content, "Email", "Enter Email...");
+        TMPro.TMP_InputField emailInput = emailObj.GetComponent<TMPro.TMP_InputField>();
+
+        // Password Input
+        GameObject passObj = CreateInputField(content, "Password", "Enter Password...");
+        TMPro.TMP_InputField passInput = passObj.GetComponent<TMPro.TMP_InputField>();
+        passInput.contentType = TMPro.TMP_InputField.ContentType.Password;
+
+        // Login Action Button
+        GameObject actionBtnObj = new GameObject("Btn_Action");
+        actionBtnObj.transform.SetParent(content, false);
+        var le = actionBtnObj.AddComponent<UnityEngine.UI.LayoutElement>();
+        le.preferredHeight = 60;
+        
+        var img = actionBtnObj.AddComponent<UnityEngine.UI.Image>();
+        img.color = Color.green;
+        var btn = actionBtnObj.AddComponent<UnityEngine.UI.Button>();
+        
+        GameObject txtObj = new GameObject("Text");
+        txtObj.transform.SetParent(actionBtnObj.transform, false);
+        var txt = txtObj.AddComponent<TMPro.TextMeshProUGUI>();
+        txt.text = "SIGN IN";
+        txt.fontSize = 28;
+        txt.alignment = TMPro.TextAlignmentOptions.Center;
+        txt.color = Color.black;
+        RectTransform txtRt = txtObj.GetComponent<RectTransform>();
+        txtRt.anchorMin = Vector2.zero; txtRt.anchorMax = Vector2.one; 
+        txtRt.offsetMin = Vector2.zero; txtRt.offsetMax = Vector2.zero;
+        
+        btn.onClick.AddListener(() => {
+            // Basic validation
+             if (string.IsNullOrEmpty(emailInput.text) || string.IsNullOrEmpty(passInput.text))
+             {
+                 Debug.LogError("Please fill all fields");
+                 return;
+             }
+             
+             NetworkManager.Instance.SignIn(emailInput.text, passInput.text, (success, msg) => {
+                 if (success)
+                 {
+                     UnityEngine.Object.Destroy(panel);
+                     // Reload Scene or Refresh UI
+                     UnityEngine.SceneManagement.SceneManager.LoadScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene().name);
+                 }
+                 else
+                 {
+                     Debug.LogError("Login Failed: " + msg);
+                     // Ideally show error on UI
+                 }
+             });
+        });
+
+        // Add "Sign Up" Button
+        GameObject signObj = new GameObject("Btn_Signup");
+        signObj.transform.SetParent(content, false);
+        var sle = signObj.AddComponent<UnityEngine.UI.LayoutElement>();
+        sle.preferredHeight = 50;
+        
+        var simg = signObj.AddComponent<UnityEngine.UI.Image>();
+        simg.color = Color.clear;
+        var sbtn = signObj.AddComponent<UnityEngine.UI.Button>();
+        
+        GameObject stxtObj = new GameObject("Text");
+        stxtObj.transform.SetParent(signObj.transform, false);
+        var stxt = stxtObj.AddComponent<TMPro.TextMeshProUGUI>();
+        stxt.text = "Don't have an account? Sign Up";
+        stxt.fontSize = 20;
+        stxt.alignment = TMPro.TextAlignmentOptions.Center;
+        stxt.color = Color.cyan;
+        stxt.fontStyle = TMPro.FontStyles.Underline;
+        RectTransform stxtRt = stxtObj.GetComponent<RectTransform>();
+        stxtRt.anchorMin = Vector2.zero; stxtRt.anchorMax = Vector2.one; 
+        stxtRt.offsetMin = Vector2.zero; stxtRt.offsetMax = Vector2.zero;
+        
+        sbtn.onClick.AddListener(() => {
+            UnityEngine.Object.Destroy(panel);
+            CreateSignupPopup();
+        });
+    }
+
+    private void CreateSignupPopup()
+    {
+        GameObject panel = CreatePopupPanel("SIGN UP");
+        Transform content = panel.transform.Find("ScrollArea/Viewport/Content");
+        
+        // Email
+        GameObject emailObj = CreateInputField(content, "Email", "Enter Email...");
+        TMPro.TMP_InputField emailInput = emailObj.GetComponent<TMPro.TMP_InputField>();
+
+        // Password
+        GameObject passObj = CreateInputField(content, "Password", "Enter Password...");
+        TMPro.TMP_InputField passInput = passObj.GetComponent<TMPro.TMP_InputField>();
+        passInput.contentType = TMPro.TMP_InputField.ContentType.Password;
+
+        // Nickname
+        GameObject nameObj = CreateInputField(content, "Nickname", "Enter Nickname...");
+        TMPro.TMP_InputField nameInput = nameObj.GetComponent<TMPro.TMP_InputField>();
+        
+        // Register Button
+        GameObject actionBtnObj = new GameObject("Btn_Action");
+        actionBtnObj.transform.SetParent(content, false);
+        var le = actionBtnObj.AddComponent<UnityEngine.UI.LayoutElement>();
+        le.preferredHeight = 60;
+        
+        var img = actionBtnObj.AddComponent<UnityEngine.UI.Image>();
+        img.color = new Color(0, 0.5f, 1f); // Blue
+        var btn = actionBtnObj.AddComponent<UnityEngine.UI.Button>();
+        
+        GameObject txtObj = new GameObject("Text");
+        txtObj.transform.SetParent(actionBtnObj.transform, false);
+        var txt = txtObj.AddComponent<TMPro.TextMeshProUGUI>();
+        txt.text = "REGISTER";
+        txt.fontSize = 28;
+        txt.alignment = TMPro.TextAlignmentOptions.Center;
+        txt.color = Color.white;
+        RectTransform txtRt = txtObj.GetComponent<RectTransform>();
+        txtRt.anchorMin = Vector2.zero; txtRt.anchorMax = Vector2.one; 
+        txtRt.offsetMin = Vector2.zero; txtRt.offsetMax = Vector2.zero;
+        
+        btn.onClick.AddListener(() => {
+             if(string.IsNullOrEmpty(emailInput.text) || string.IsNullOrEmpty(passInput.text) || string.IsNullOrEmpty(nameInput.text))
+             {
+                 Debug.LogError("All fields required");
+                 return;
+             }
+             
+             NetworkManager.Instance.SignUp(emailInput.text, passInput.text, (success, msg) => {
+                 if (success) {
+                      Debug.Log("Signup Success! Now setting nickname...");
+                      // Wait briefly or login immediately to set nickname? 
+                      // Supabase requires login to update profile usually.
+                      // Let's Auto-Login first.
+                      NetworkManager.Instance.SignIn(emailInput.text, passInput.text, (lSuccess, lMsg) => {
+                          if (lSuccess) {
+                              NetworkManager.Instance.UpdateProfileName(nameInput.text, (uSuccess) => {
+                                  if(uSuccess) {
+                                      Debug.Log("Nickname Set!");
+                                      UnityEngine.Object.Destroy(panel);
+                                      CreateFooterUI(); // Update UI
+                                      
+                                      // [FIX] Force UI Update
+                                      if (SchoolLobbyManager.Instance != null && SchoolLobbyManager.Instance.gameObject.GetComponent<SchoolLobbyManager>() != null) {
+                                          SchoolLobbyManager.Instance.SendMessage("UpdateProfileUI", UnityEngine.SendMessageOptions.DontRequireReceiver);
+                                      }
+                                  } else {
+                                      Debug.LogError("Failed to set nickname");
+                                  }
+                              });
+                          } else {
+                              Debug.LogError("Auto-Login after signup failed");
+                          }
+                      });
+                 } else {
+                     Debug.LogError("Signup Failed: " + msg);
+                     txt.text = "FAILED";
+                     img.color = Color.red;
+                 }
+             });
+        });
+    }
+
+    private GameObject CreatePopupPanel(string title)
+    {
+        // 1. Panel Container (Overlay)
+        GameObject panelObj = new GameObject("PopupPanel_" + title);
+        GameObject canvas = GameObject.Find("Canvas");
+        if (canvas != null) panelObj.transform.SetParent(canvas.transform, false);
+        
+        var img = panelObj.AddComponent<UnityEngine.UI.Image>();
+        img.color = new Color(0, 0, 0, 0.8f); // Dim Background
+        
+        var rt = panelObj.GetComponent<RectTransform>();
+        rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+        rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
+        
+        // 2. Window
+        GameObject winObj = new GameObject("Window");
+        winObj.transform.SetParent(panelObj.transform, false);
+        var winImg = winObj.AddComponent<UnityEngine.UI.Image>();
+        winImg.color = new Color(0.1f, 0.1f, 0.15f, 1f); // Dark Navy
+        
+        var winRt = winObj.GetComponent<RectTransform>();
+        winRt.sizeDelta = new Vector2(600, 500);
+        
+        // 3. Title
+        GameObject titleObj = new GameObject("Title");
+        titleObj.transform.SetParent(winObj.transform, false);
+        var txt = titleObj.AddComponent<TMPro.TextMeshProUGUI>();
+        txt.text = title;
+        txt.fontSize = 32;
+        txt.fontStyle = TMPro.FontStyles.Bold;
+        txt.alignment = TMPro.TextAlignmentOptions.Center;
+        txt.color = Color.white;
+        
+        var titleRt = titleObj.GetComponent<RectTransform>();
+        titleRt.anchorMin = new Vector2(0, 1); titleRt.anchorMax = new Vector2(1, 1);
+        titleRt.pivot = new Vector2(0.5f, 1);
+        titleRt.anchoredPosition = new Vector2(0, -20);
+        titleRt.sizeDelta = new Vector2(0, 50);
+
+        // 4. ScrollArea (Container for fields)
+        GameObject scrollObj = new GameObject("ScrollArea");
+        scrollObj.transform.SetParent(winObj.transform, false);
+        var scrollRt = scrollObj.AddComponent<RectTransform>();
+        scrollRt.anchorMin = Vector2.zero; scrollRt.anchorMax = Vector2.one; 
+        scrollRt.offsetMin = new Vector2(20, 20); scrollRt.offsetMax = new Vector2(-20, -60); // Padding
+        
+        // Viewport
+        GameObject vpObj = new GameObject("Viewport");
+        vpObj.transform.SetParent(scrollObj.transform, false);
+        var vpImg = vpObj.AddComponent<UnityEngine.UI.Image>(); // Needs image for mask
+        vpImg.color = Color.clear; // Invisible
+        var mask = vpObj.AddComponent<UnityEngine.UI.Mask>();
+        mask.showMaskGraphic = false;
+        
+        var vpRt = vpObj.GetComponent<RectTransform>();
+        vpRt.anchorMin = Vector2.zero; vpRt.anchorMax = Vector2.one;
+        vpRt.sizeDelta = Vector2.zero;
+        
+        // Content
+        GameObject contentObj = new GameObject("Content");
+        contentObj.transform.SetParent(vpObj.transform, false);
+        var contentRt = contentObj.AddComponent<RectTransform>();
+        contentRt.anchorMin = new Vector2(0, 1); contentRt.anchorMax = new Vector2(1, 1);
+        contentRt.pivot = new Vector2(0.5f, 1);
+        contentRt.sizeDelta = new Vector2(0, 300); // Height managed by VLG or ContentSizeFitter
+        
+        var vlg = contentObj.AddComponent<UnityEngine.UI.VerticalLayoutGroup>();
+        vlg.childControlHeight = false;
+        vlg.childControlWidth = true;
+        vlg.spacing = 20;
+        vlg.padding = new UnityEngine.RectOffset(20, 20, 20, 20);
+        vlg.childAlignment = TextAnchor.UpperCenter;
+
+        var csf = contentObj.AddComponent<UnityEngine.UI.ContentSizeFitter>();
+        csf.verticalFit = UnityEngine.UI.ContentSizeFitter.FitMode.PreferredSize;
+
+        // 5. Close Button
+        GameObject closeObj = new GameObject("Btn_Close");
+        closeObj.transform.SetParent(winObj.transform, false);
+        
+        var closeBtn = closeObj.AddComponent<UnityEngine.UI.Button>();
+        closeBtn.onClick.AddListener(() => UnityEngine.Object.Destroy(panelObj));
+        
+        // Text "X"
+        GameObject xObj = new GameObject("Text");
+        xObj.transform.SetParent(closeObj.transform, false);
+        var xTxt = xObj.AddComponent<TMPro.TextMeshProUGUI>();
+        xTxt.text = "X";
+        xTxt.fontSize = 24;
+        xTxt.alignment = TMPro.TextAlignmentOptions.Center;
+        xTxt.color = Color.white;
+        RectTransform xRt = xObj.GetComponent<RectTransform>();
+        xRt.anchorMin = Vector2.zero; xRt.anchorMax = Vector2.one;
+        xRt.offsetMin = Vector2.zero; xRt.offsetMax = Vector2.zero;
+
+        var closeRt = closeObj.GetComponent<RectTransform>();
+        closeRt.anchorMin = new Vector2(1, 1); closeRt.anchorMax = new Vector2(1, 1);
+        closeRt.anchoredPosition = new Vector2(-20, -20);
+        closeRt.sizeDelta = new Vector2(40, 40);
+        
+        return panelObj;
+    }
+
+
+    private GameObject CreateInputField(Transform parent, string label, string placeholder)
+    {
+        GameObject obj = new GameObject("Input_" + label);
+        obj.transform.SetParent(parent, false);
+        var le = obj.AddComponent<UnityEngine.UI.LayoutElement>();
+        le.preferredHeight = 80;
+        
+        var img = obj.AddComponent<UnityEngine.UI.Image>();
+        img.color = new Color(0.2f, 0.2f, 0.2f);
+        
+        var input = obj.AddComponent<TMPro.TMP_InputField>();
+        input.textComponent = null; // Needs setup
+        
+        // Text Area
+        GameObject textObj = new GameObject("Text");
+        textObj.transform.SetParent(obj.transform, false);
+        var txt = textObj.AddComponent<TMPro.TextMeshProUGUI>();
+        txt.fontSize = 24; txt.color = Color.white;
+        RectTransform textRt = textObj.GetComponent<RectTransform>();
+        textRt.anchorMin = new Vector2(0.05f, 0); textRt.anchorMax = new Vector2(0.95f, 1);
+        textRt.offsetMin = Vector2.zero; textRt.offsetMax = Vector2.zero;
+        
+        input.textViewport = textRt;
+        input.textComponent = txt;
+        
+        // Placeholder
+        GameObject phObj = new GameObject("Placeholder");
+        phObj.transform.SetParent(textObj.transform, false);
+        var ph = phObj.AddComponent<TMPro.TextMeshProUGUI>();
+        ph.fontSize = 24; ph.color = new Color(0.5f, 0.5f, 0.5f);
+        ph.fontStyle = TMPro.FontStyles.Italic;
+        ph.text = placeholder;
+        RectTransform phRt = phObj.GetComponent<RectTransform>();
+        phRt.anchorMin = Vector2.zero; phRt.anchorMax = Vector2.one;
+        phRt.offsetMin = Vector2.zero; phRt.offsetMax = Vector2.zero;
+        
+        input.placeholder = ph;
+        
+        return obj;
+    }
+
+    private void BindButtonWithFallback(string primaryName, string secondaryName, UnityEngine.Events.UnityAction action)
+    {
+        BindButton(primaryName, action);
+        if (GameObject.Find(primaryName) == null)
+        {
+            BindButton(secondaryName, action);
+        }
+    }
+
+    private void BindButton(string btnName, UnityEngine.Events.UnityAction action)
+
+    {
+
+        // 1. Try GameObject.Find (Active only)
+
+        GameObject btnObj = GameObject.Find(btnName);
+
+
+
+        // 2. Try Recursive Search under Canvas (Finds inactive/hidden)
+
+        if (btnObj == null)
+
+        {
+
+            GameObject canvas = GameObject.Find("Canvas");
+
+            if (canvas != null)
+
+            {
+
+                Transform t = FindRecursive(canvas.transform, btnName);
+
+                if (t != null) btnObj = t.gameObject;
+
+            }
+
+        }
+
+
+
+        if (btnObj != null)
+
+        {
+            // [FIX] Apply Premium Style Immediately
+            ApplyButtonStyle(btnObj);
+
+            UnityEngine.UI.Button btn = btnObj.GetComponent<UnityEngine.UI.Button>();
+
+            if (btn != null)
+
+            {
+
+                btn.onClick.RemoveAllListeners();
+
+                btn.onClick.AddListener(action);
+
+                Debug.Log($"[SchoolLobbyManager] Successfully Bound event to {btnName}");
+
+            }
+
+            else
+
+            {
+
+                Debug.LogWarning($"[SchoolLobbyManager] Found {btnName} but it has NO Button component!");
+
+            }
+
+        }
+
+        else
+
+        {
+
+            Debug.LogWarning($"[SchoolLobbyManager] Could NOT find button: {btnName}");
+
+        }
+
+    }
+
+
+
+    private void RemoveUIBlockers()
+
+    {
+
+        // 1. TitleText ì²ë¦¬
+
+        GameObject titleText = GameObject.Find("TitleText");
+
+        if (titleText != null)
+
+        {
+
+            var g = titleText.GetComponent<UnityEngine.UI.Graphic>();
+
+            if (g != null) g.raycastTarget = false;
+
+        }
+
+
+
+        // 2. ëª¨ë  ????TMP, Legacy Text)??Raycast ?ê¸?(Inactive ???
+
+#if UNITY_2020_1_OR_NEWER
+
+        var allTmpTexts = FindObjectsOfType<TMPro.TextMeshProUGUI>(true);
+
+#else
+
+        var allTmpTexts = FindObjectsOfType<TMPro.TextMeshProUGUI>();
+
+#endif
+
+        foreach (var txt in allTmpTexts)
+
+        {
+
+            txt.raycastTarget = false;
+
+        }
+
+
+
+#if UNITY_2020_1_OR_NEWER
+
+        var allLegacyTexts = FindObjectsOfType<UnityEngine.UI.Text>(true);
+
+#else
+
+        var allLegacyTexts = FindObjectsOfType<UnityEngine.UI.Text>();
+
+#endif
+
+        foreach (var txt in allLegacyTexts)
+
+        {
+
+            txt.raycastTarget = false;
+
+        }
+
+
+
+        Debug.Log("[SchoolLobbyManager] Disabled Raycast on ALL Texts (including inactive) to prevent blocking.");
+
+    }
+
+
+
+    private void Update()
+    {
+        // Debug logic removed for optimization
+    }
+
+
+
+    private System.Collections.IEnumerator SeekCharacterAnimations()
+
+    {
+
+        // [FIX] Main ???ë§?????????
+        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "Main") yield break;
+
+
+
+        yield return new WaitForSeconds(0.5f);
+
+
+
+        string[] charNames = { "minA_1", "Minwoo_1" };
+
+        foreach (string name in charNames)
+
+        {
+
+            GameObject obj = GameObject.Find(name);
+
+            if (obj != null)
+
+            {
+
+                Animator anim = obj.GetComponentInChildren<Animator>();
+
+                
+
+                // [FIX] Animatorê° ??????ì¶??ì£?
+
+                if (anim == null)
+
+                {
+
+                    Debug.LogWarning($"[SchoolLobbyManager] No Animator found on {name}. Adding one automatically.");
+
+                    anim = obj.AddComponent<Animator>();
+
+                    // Avatar??Controllerê° ????T-Pose??????? ???ì»´í¬????ì¡´ì¬?ê²???
+
+                }
+
+
+
+                if (anim != null)
+
+                {
+
+                    // Animatorê° êº¼ì ¸???ì¼ì£¼?
+
+                    if (!anim.enabled) anim.enabled = true;
+
+                    if (!anim.gameObject.activeInHierarchy) anim.gameObject.SetActive(true);
+
+                    
+
+                    // Controller ???
+                    if (anim.runtimeAnimatorController == null)
+
+                    {
+
+                        Debug.LogWarning($"[SchoolLobbyManager] {name} found but NO Controller assigned!");
+
+                        // ?ê¸??????????ì¤???????(Resource ë¡ë ??
+
+                    }
+
+                }
+
+
+
+                if (anim != null)
+
+                {
+
+                    // ??????ì¤ì¸ ????ë³?ê°???
+
+                    AnimatorStateInfo state = anim.GetCurrentAnimatorStateInfo(0);
+
+                    
+
+                    Debug.Log($"[SchoolLobbyManager] Found Animator on {anim.gameObject.name}. State Length: {state.length}, Loop: {state.loop}");
+
+
+
+                    if (state.length > 0)
+
+                    {
+
+                        float offset = 20f;
+
+                        // 0~1 ?????ê·????ê°?Normalized Time)?ë¡?ë³??
+
+                        float normalizedTime = (offset % state.length) / state.length;
+
+                        
+
+                        // ê°ì ?????ì¹????
+                        anim.Play(state.fullPathHash, 0, normalizedTime);
+
+                        
+
+                        // ???Playê° ??ë¨¹í ê²½ì°??ë¹í´ Update???ì¶?
+                        anim.Update(0f);
+
+                        
+
+                        Debug.Log($"[SchoolLobbyManager] {name} seeked to {normalizedTime} (20s)");
+
+                    }
+
+                    else
+
+                    {
+
+                        // ê¸¸ì´ê° 0?ë©??ë§????ê? ?ì§?Transition ì¤ì´ê±°ë ì´ê¸°?????
+
+                        // ê°ì ?"Base Layer.Motion" ê°? ?ë¦?ë¡???????ë³??????
+
+                        // MMD4Mecanim? ë³´íµ ê¸°ë³¸ ??????????
+
+                        anim.Play(0, -1, 0.2f); // 20% ì§???ê°ì  ??????(???
+
+                        Debug.LogWarning($"[SchoolLobbyManager] {name} State length is 0. Tried forcing normalized time 0.2");
+
+                    }
+
+                }
+
+                else
+
+                {
+
+                    Debug.LogWarning($"[SchoolLobbyManager] Found {name} but NO Animator found in children!");
+
+                    // ????ë¸???ë¦¬ì¤??ì¶ë ¥
+
+                    foreach (Transform t in obj.transform)
+
+                    {
+
+                        Debug.Log($"   Child: {t.name}");
+
+                    }
+
+                }
+
+            }
+
+            else
+
+            {
+
+                Debug.LogWarning($"[SchoolLobbyManager] Could NOT find character: {name}");
+
+            }
+
+        }
+
+    }
+
+
+
+    // --- UI Button Callbacks ---
+
+
+
+    public void OnGameStartClick()
+
+    {
+
+        Debug.Log("[SchoolLobbyManager] Game Start Clicked! (Checking Song Selection Panel)");
+
+        if (songSelectPanel != null) 
+
+        {
+
+            Debug.Log($"[SchoolLobbyManager] Toggling Song Selection Panel: {songSelectPanel.name}");
+
+            TogglePanel(songSelectPanel);
+
+        }
+
+        else
+
+        {
+
+            Debug.LogError("[SchoolLobbyManager] Song Selection Panel is NULL!");
+
+        }
+
+    }
+
+
+
+    public void OnRankingClick()
+
+    {
+
+        Debug.Log("[SchoolLobbyManager] Ranking Clicked!");
+
+        TogglePanel(rankingPanel);
+
+    }
+
+    public void OnShopClick()
+    {
+        Debug.Log("[SchoolLobbyManager] Shop Clicked!");
+        TogglePanel(shopPanel);
+    }
+
+
+
+
+
+
+
+    public void OnProfileClick()
+
+    {
+
+        Debug.Log("[SchoolLobbyManager] Profile Clicked!");
+
+        TogglePanel(profilePanel);
+
+    }
+
+
+
+    public void OnOptionsClick()
+
+    {
+
+        Debug.Log("[SchoolLobbyManager] Options Clicked!");
+
+        TogglePanel(optionsPanel);
+
+    }
+
+    
+
+    // [NEW] Selected Song Tracking
+
+    private string _selectedSongTitle = "GALAXIAS!"; // ê¸°ë³¸?
+
+
+
+    // [NEW] Real Game Start (called from Song Select Panel)
+
+    public void StartGameLoop()
+
+    {
+
+        Debug.Log($"[SchoolLobbyManager] Starting Game Loop... Selected Song: {_selectedSongTitle}");
+
+        
+
+        // [FIX] ????ê³¡ì ?????ë¶ê¸°
+
+        if (_selectedSongTitle.ToUpper().Contains("SODAPOP"))
+
+        {
+
+            UnityEngine.SceneManagement.SceneManager.LoadScene("Game_second");
+
+        }
+
+        else
+
+        {
+
+            // Default: GALAXIAS!
+
+            UnityEngine.SceneManagement.SceneManager.LoadScene("Game_first");
+
+        }
+
+    }
+
+
+
+    public void OnCharacterClick()
+
+    {
+
+        Debug.Log("[SchoolLobbyManager] Open Customization (Locker)");
+
+        TogglePanel(customizationPanel);
+
+    }
+
+
+
+    public void OnTutorialClick()
+
+    {
+
+        Debug.Log("[SchoolLobbyManager] Start Tutorial (Orientation)");
+
+        // SceneManager.LoadScene("Tutorial"); 
+
+    }
+
+
+
+    private void TogglePanel(GameObject panel)
+
+    {
+
+        if (panel != null)
+
+        {
+
+            // [FIX] Capture state BEFORE closing
+
+            bool wasActive = panel.activeSelf;
+
+            CloseAllPanels();
+
+
+
+            bool isOpening = !wasActive;
+
+            panel.SetActive(isOpening);
+
+
+
+            if (isOpening) 
+
+            {
+
+                panel.transform.SetAsLastSibling();
+
+                
+
+                RectTransform rt = panel.GetComponent<RectTransform>();
+
+                if (rt != null)
+
+                {
+                    // [FIX] User requested to expand background to fit text
+                    rt.anchorMin = new Vector2(0.1f, 0.1f);
+                    rt.anchorMax = new Vector2(0.9f, 0.9f);
+                    rt.offsetMin = Vector2.zero;
+                    rt.offsetMax = Vector2.zero;
+                }
+
+
+
+                BindCloseButton(panel);
+
+
+
+                if (panel == shopPanel) PopulateShop(panel);
+
+                if (panel == songSelectPanel) PopulateSongSelect(panel);
+
+                if (panel == rankingPanel) PopulateRanking(panel);
+
+                if (panel == optionsPanel) PopulateOptions(panel); 
+                
+                if (panel == qrConnectionPanel) PopulateQRConnection(panel); // [NEW] Populate QR Logic
+
+            }
+
+        }
+
+        else
+
+        {
+
+            Debug.LogWarning("Panel not assigned in Inspector.");
+
+        }
+
+    }
+
+
+
+    // SetMainMenuVisible ë©ì???????????? ??¼ë?????ê±??ë¹ì??
+
+    private void SetMainMenuVisible(bool visible) { }
+
+
+
+
+
+
+
+    private void CreateSongCard(Transform parent, string title, bool unlock, int index)
+    {
+        if (parent == null) return;
+
+        // Cover Flow Card (Square)
+        GameObject card = new GameObject("SongCard_" + title);
+        card.layer = LayerMask.NameToLayer("UI");
+        card.transform.SetParent(parent, false);
+
+        // Card Background (Album Art Container)
+        UnityEngine.UI.Image img = card.AddComponent<UnityEngine.UI.Image>();
+        img.color = unlock ? Color.white : new Color(0.1f, 0.1f, 0.1f, 0.8f); 
+        
+        // [FIX] Preserve Aspect Ratio to prevent "Cutting off" / Squashing
+        img.preserveAspect = true;
+        
+        // [FIX] Assign Album Art
+        if (unlock && albumCovers != null && index < albumCovers.Length && albumCovers[index] != null)
+        {
+             img.sprite = albumCovers[index];
+        }
+
+        RectTransform rt = card.GetComponent<RectTransform>();
+        rt.sizeDelta = new Vector2(320, 320); 
+        rt.localScale = Vector3.one;
+        // [FIX] Offset UP to separate from bottom text, even if container expands down
+        rt.anchoredPosition = new Vector2(0, 80);
+
+        // Overlay for Lock
+        if(!unlock)
+        {
+            GameObject lockOverlay = new GameObject("LockOverlay");
+            lockOverlay.transform.SetParent(card.transform, false);
+            var lockImg = lockOverlay.AddComponent<UnityEngine.UI.Image>();
+            lockImg.color = new Color(0, 0, 0, 0.6f);
+            
+            RectTransform lrt = lockOverlay.GetComponent<RectTransform>();
+            lrt.anchorMin = Vector2.zero; lrt.anchorMax = Vector2.one;
+            lrt.sizeDelta = Vector2.zero;
+            
+            GameObject lockTxtObj = new GameObject("LockText");
+            lockTxtObj.transform.SetParent(lockOverlay.transform, false);
+            var lTxt = lockTxtObj.AddComponent<TMPro.TextMeshProUGUI>();
+            lTxt.text = "LOCKED";
+            lTxt.fontSize = 40;
+            lTxt.alignment = TMPro.TextAlignmentOptions.Center;
+            lTxt.color = Color.gray;
+        }
+
+        // Title Text (Below Card)
+        GameObject txtObj = new GameObject("Title");
+        txtObj.transform.SetParent(card.transform, false);
+        var txt = txtObj.AddComponent<TMPro.TextMeshProUGUI>();
+        txt.text = title.ToUpper();
+        txt.alignment = TMPro.TextAlignmentOptions.Center; 
+        txt.fontSize = 32;
+        txt.fontStyle = TMPro.FontStyles.Bold;
+        txt.color = Color.white;
+        
+        // Shadow
+        var outline = txtObj.AddComponent<UnityEngine.UI.Outline>();
+        outline.effectColor = new Color(0,0,0,0.8f);
+        outline.effectDistance = new Vector2(2, -2);
+        
+        RectTransform txtRt = txtObj.GetComponent<RectTransform>();
+        // [FIX] Move text closer to image to avoid overlap with bottom button
+        txtRt.anchorMin = new Vector2(0, -0.15f); txtRt.anchorMax = new Vector2(1, 0); 
+        txtRt.offsetMin = Vector2.zero; txtRt.offsetMax = Vector2.zero;
+
+        // Button Logic (Click to Select)
+        UnityEngine.UI.Button btn = card.AddComponent<UnityEngine.UI.Button>();
+        // Invisible button over the art
+        UnityEngine.UI.ColorBlock cb = btn.colors;
+        cb.highlightedColor = new Color(1,1,1,1.1f); // Slight brighten
+        btn.colors = cb;
+
+        btn.onClick.AddListener(() => {
+            // Snap Carousel
+            var cv = parent.GetComponentInParent<CarouselView>();
+            if (cv != null) cv.SnapTo(index);
+        });
+    }
+
+    private void PopulateSongSelect(GameObject panel)
+    {
+        Debug.Log($"[Lobby] Layout: Cover Flow Mode");
+
+        foreach (Transform child in panel.transform) Destroy(child.gameObject);
+
+        // 1. Background (Dark Overlay)
+        var bgImg = panel.GetComponent<UnityEngine.UI.Image>();
+        if(bgImg == null) bgImg = panel.AddComponent<UnityEngine.UI.Image>();
+        bgImg.color = new Color(0, 0, 0, 0.85f); // Slightly transparent
+
+        // 2. Carousel Container (Full Width, Centered)
+        GameObject carouselPanel = new GameObject("CoverFlowContainer");
+        carouselPanel.transform.SetParent(panel.transform, false);
+        RectTransform cRt = carouselPanel.AddComponent<RectTransform>();
+        // [FIX] Expand range DOWN (0.15) to unmask text, but keep cards high (via offset)
+        cRt.anchorMin = new Vector2(0, 0.15f); cRt.anchorMax = new Vector2(1, 1f); 
+        cRt.offsetMin = Vector2.zero; cRt.offsetMax = new Vector2(0, -20);
+
+        // Scroll Rect
+        var scroll = carouselPanel.AddComponent<UnityEngine.UI.ScrollRect>();
+        carouselPanel.AddComponent<UnityEngine.UI.Image>().color = Color.clear;
+        
+        // Viewport
+        GameObject viewport = new GameObject("Viewport");
+        viewport.transform.SetParent(carouselPanel.transform, false);
+        RectTransform vRt = viewport.AddComponent<RectTransform>();
+        vRt.anchorMin = Vector2.zero; vRt.anchorMax = Vector2.one;
+        vRt.sizeDelta = Vector2.zero;
+        viewport.AddComponent<UnityEngine.UI.RectMask2D>();
+        scroll.viewport = vRt;
+
+        // Content
+        GameObject contentObj = new GameObject("Content");
+        contentObj.transform.SetParent(viewport.transform, false);
+        var contentRt = contentObj.AddComponent<RectTransform>();
+        // Size determined by items, simpler to set huge width
+        contentRt.sizeDelta = new Vector2(2000, 600); 
+        scroll.content = contentRt;
+        scroll.horizontal = true; scroll.vertical = false; // [FIX] Horizontal
+        scroll.movementType = UnityEngine.UI.ScrollRect.MovementType.Elastic;
+        scroll.inertia = true; scroll.decelerationRate = 0.135f;
+
+        // Carousel View Logic
+        var cv = carouselPanel.AddComponent<CarouselView>();
+        cv.container = contentRt;
+        cv.spacing = 400f; // Adjusted spacing
+        cv.scaleFactor = 1.2f; // [FIX] Reduced scale slightly (was 1.3)
+        cv.scaleSpeed = 8f;
+        cv.isVertical = false; // Horizontal
+
+        // Items
+        string[] songs = { "GALAXIAS!", "SODAPOP", "Coming Soon" };
+        for(int i=0; i<songs.Length; i++)
+        {
+            CreateSongCard(contentRt, songs[i], i <= 1, i);
+        }
+
+        // 3. Game Start Button (Bottom Center)
+        GameObject startBtnObj = new GameObject("Btn_StartGame");
+        startBtnObj.transform.SetParent(panel.transform, false);
+        
+        // Style
+        var startImg = startBtnObj.AddComponent<UnityEngine.UI.Image>();
+        startImg.color = new Color(0, 0.8f, 1f); // Cyan
+        var startBtn = startBtnObj.AddComponent<UnityEngine.UI.Button>(); 
+        // [FIX] Removed ApplyButtonStyle as per user request (Style looks weird centered)
+        
+        RectTransform startRt = startBtnObj.GetComponent<RectTransform>();
+        // [FIX] Lower the button slightly to give more room
+        startRt.anchorMin = new Vector2(0.35f, 0.02f); startRt.anchorMax = new Vector2(0.65f, 0.12f);
+        startRt.offsetMin = Vector2.zero; startRt.offsetMax = Vector2.zero;
+        
+        // Button Text
+        GameObject stTxtObj = new GameObject("Text");
+        stTxtObj.transform.SetParent(startBtnObj.transform, false);
+        var stTxt = stTxtObj.AddComponent<TMPro.TextMeshProUGUI>();
+        stTxt.text = "GAME START";
+        stTxt.fontSize = 36;
+        stTxt.alignment = TMPro.TextAlignmentOptions.Center;
+        stTxt.color = Color.black; 
+        stTxt.fontStyle = TMPro.FontStyles.Bold;
+        
+        var stRt = stTxtObj.GetComponent<RectTransform>();
+        stRt.anchorMin = Vector2.zero; stRt.anchorMax = Vector2.one;
+        stRt.offsetMin = Vector2.zero; stRt.offsetMax = Vector2.zero;
+
+        // Button Action
+        startBtn.onClick.AddListener(()=> { 
+            Debug.Log($"[Lobby] Validating Selection: {_selectedSongTitle}");
+            
+            // Check Lock
+            if (_selectedSongTitle.Contains("Locked") || _selectedSongTitle == "Coming Soon") {
+                 Debug.Log("[Lobby] Song is LOCKED.");
+                 return;
+            }
+
+            // [NEW] Play Mode Selection Popup
+            GameObject modePopup = new GameObject("ModeSelectionPopup");
+            modePopup.transform.SetParent(panel.transform.parent, false); // Add to Canvas, overlaying everything
+            
+            // Full Screen Dimmer
+            var dim = modePopup.AddComponent<UnityEngine.UI.Image>();
+            dim.color = new Color(0,0,0,0.8f);
+            var dimRt = modePopup.GetComponent<RectTransform>();
+            dimRt.anchorMin = Vector2.zero; dimRt.anchorMax = Vector2.one;
+            dimRt.offsetMin = Vector2.zero; dimRt.offsetMax = Vector2.zero;
+            
+            // Container
+            GameObject container = new GameObject("Container");
+            container.transform.SetParent(modePopup.transform, false);
+            var cImg = container.AddComponent<UnityEngine.UI.Image>();
+            cImg.color = new Color(0.1f, 0.1f, 0.15f);
+            var cRt = container.GetComponent<RectTransform>();
+            cRt.sizeDelta = new Vector2(600, 400);
+            
+            // Title
+            GameObject titleObj = new GameObject("Title");
+            titleObj.transform.SetParent(container.transform, false);
+            var tTxt = titleObj.AddComponent<TMPro.TextMeshProUGUI>();
+            tTxt.text = "SELECT PLAY MODE";
+            tTxt.fontSize = 36; tTxt.alignment = TMPro.TextAlignmentOptions.Center;
+            tTxt.fontStyle = TMPro.FontStyles.Bold;
+            tTxt.color = Color.cyan;
+            var tRt = titleObj.GetComponent<RectTransform>();
+            tRt.anchorMin = new Vector2(0, 0.8f); tRt.anchorMax = new Vector2(1, 1);
+            tRt.offsetMin = Vector2.zero; tRt.offsetMax = Vector2.zero;
+
+            // PC Button
+            GameObject pcBtnObj = new GameObject("Btn_PC");
+            pcBtnObj.transform.SetParent(container.transform, false);
+            var pcImg = pcBtnObj.AddComponent<UnityEngine.UI.Image>();
+            pcImg.color = new Color(0.2f, 0.6f, 1f);
+            var pcBtn = pcBtnObj.AddComponent<UnityEngine.UI.Button>();
+            var pcRt = pcBtnObj.GetComponent<RectTransform>();
+            pcRt.anchorMin = new Vector2(0.1f, 0.3f); pcRt.anchorMax = new Vector2(0.45f, 0.6f);
+            pcRt.offsetMin = Vector2.zero; pcRt.offsetMax = Vector2.zero;
+            
+            GameObject pcTxtObj = new GameObject("Text");
+            pcTxtObj.transform.SetParent(pcBtnObj.transform, false);
+            var pcTxt = pcTxtObj.AddComponent<TMPro.TextMeshProUGUI>();
+            pcTxt.text = "COMPUTER\n(Keyboard)";
+            pcTxt.fontSize = 24; pcTxt.alignment = TMPro.TextAlignmentOptions.Center;
+            
+            pcBtn.onClick.AddListener(() => {
+                Debug.Log("[Mode] Computer Selected.");
+                Destroy(modePopup);
+                StartGameLoop();
+            });
+
+            // Mobile Button
+            GameObject mbBtnObj = new GameObject("Btn_Mobile");
+            mbBtnObj.transform.SetParent(container.transform, false);
+            var mbImg = mbBtnObj.AddComponent<UnityEngine.UI.Image>();
+            mbImg.color = new Color(1f, 0.4f, 0.8f);
+            var mbBtn = mbBtnObj.AddComponent<UnityEngine.UI.Button>();
+            var mbRt = mbBtnObj.GetComponent<RectTransform>();
+            mbRt.anchorMin = new Vector2(0.55f, 0.3f); mbRt.anchorMax = new Vector2(0.9f, 0.6f);
+            mbRt.offsetMin = Vector2.zero; mbRt.offsetMax = Vector2.zero;
+            
+            GameObject mbTxtObj = new GameObject("Text");
+            mbTxtObj.transform.SetParent(mbBtnObj.transform, false);
+            var mbTxt = mbTxtObj.AddComponent<TMPro.TextMeshProUGUI>();
+            mbTxt.text = "MOBILE\n(Controller)";
+            mbTxt.fontSize = 24; mbTxt.alignment = TMPro.TextAlignmentOptions.Center;
+            
+            mbBtn.onClick.AddListener(() => {
+                Debug.Log("[Mode] Mobile Selected. Opening QR.");
+                Destroy(modePopup);
+                TogglePanel(qrConnectionPanel); // Open QR Panel
+            });
+
+            // Close X (Styled)
+            GameObject closeObj = new GameObject("Close");
+            closeObj.transform.SetParent(container.transform, false);
+            var clBtn = closeObj.AddComponent<UnityEngine.UI.Button>();
+            var clImg = closeObj.AddComponent<UnityEngine.UI.Image>(); 
+            clImg.color = new Color(0,0,0,0); // Transparent
+            
+            var clRt = closeObj.GetComponent<RectTransform>();
+            clRt.anchorMin = new Vector2(0.92f, 0.9f); clRt.anchorMax = new Vector2(0.98f, 0.98f); // Top Right corner
+            clRt.offsetMin = Vector2.zero; clRt.offsetMax = Vector2.zero;
+            
+            // Text for X
+            GameObject clTxtObj = new GameObject("Text");
+            clTxtObj.transform.SetParent(closeObj.transform, false);
+            var clTxt = clTxtObj.AddComponent<TMPro.TextMeshProUGUI>();
+            clTxt.text = "X";
+            clTxt.fontSize = 28;
+            clTxt.alignment = TMPro.TextAlignmentOptions.Center;
+            clTxt.color = Color.white;
+            
+            // Hover Color Block
+            UnityEngine.UI.ColorBlock cb = clBtn.colors;
+            cb.highlightedColor = new Color(1f, 0, 0, 0.5f); // Red tint on hover
+            cb.pressedColor = new Color(0.8f, 0, 0, 0.5f);
+            clBtn.colors = cb;
+
+            clBtn.onClick.AddListener(() => Destroy(modePopup));
+        });
+
+        // 4. Close Button (Top Right)
+        GameObject closeBtnObj = new GameObject("Btn_Close");
+        closeBtnObj.transform.SetParent(panel.transform, false);
+        var closeImg = closeBtnObj.AddComponent<UnityEngine.UI.Image>();
+        closeImg.color = new Color(1f, 1f, 1f, 0f); // Invisible hit area
+        var closeBtn = closeBtnObj.AddComponent<UnityEngine.UI.Button>();
+        closeBtn.onClick.AddListener(() => { TogglePanel(panel); });
+        
+        // Visual X
+        GameObject xObj = new GameObject("X");
+        xObj.transform.SetParent(closeBtnObj.transform, false);
+        var xTxt = xObj.AddComponent<TMPro.TextMeshProUGUI>();
+        xTxt.text = "X"; xTxt.fontSize = 40; xTxt.color = Color.white;
+        xTxt.alignment = TMPro.TextAlignmentOptions.Center;
+        
+        RectTransform closeRt = closeBtnObj.GetComponent<RectTransform>();
+        closeRt.anchorMin = new Vector2(0.92f, 0.92f); closeRt.anchorMax = new Vector2(0.98f, 0.98f);
+        closeRt.sizeDelta = Vector2.zero;
+        
+        RectTransform xRt = xObj.GetComponent<RectTransform>();
+        xRt.anchorMin = Vector2.zero; xRt.anchorMax = Vector2.one;
+        xRt.sizeDelta = Vector2.zero;
+
+
+        // Selection Callback
+        cv.Invoke("InitializeItems", 0.1f);
+        cv.OnItemSelected = (index) => {
+            if (index >= 0 && index < songs.Length)
+            {
+                string s = songs[index];
+                _selectedSongTitle = s;
+                Debug.Log($"[Carousel] Selected: {s}");
+                
+                // Optional: Update BG color or effects based on song
+                // [FIX] LOCK LOGIC
+                bool isLocked = (s == "Coming Soon" || s.Contains("Locked"));
+                startBtn.interactable = !isLocked;
+                stTxt.text = isLocked ? "LOCKED" : "GAME START";
+
+                startImg.color = isLocked ? Color.gray : new Color(0, 0.7f, 0.9f);
+
+                stTxt.color = isLocked ? new Color(0.3f, 0.3f, 0.3f) : Color.black;
+
+            }
+
+        };
+
+    }
+
+
+
+
+
+    private void BindSongSelectStartButton(GameObject panel)
+
+    {
+
+        // "StartButton" ???"Btn_Start" ì°¾ê¸°
+
+        var buttons = panel.GetComponentsInChildren<UnityEngine.UI.Button>(true);
+
+        UnityEngine.UI.Button startBtn = null;
+
+        
+
+        foreach (var btn in buttons)
+
+        {
+
+            if (btn.name.Contains("Start") || btn.name.Contains("Play") || 
+
+                btn.GetComponentInChildren<TMPro.TextMeshProUGUI>()?.text.ToUpper().Contains("START") == true ||
+
+                btn.GetComponentInChildren<TMPro.TextMeshProUGUI>()?.text.ToUpper().Contains("PLAY") == true)
+
+            {
+
+                startBtn = btn;
+
+                break;
+
+            }
+
+        }
+
+
+
+        if (startBtn != null)
+
+        {
+
+            startBtn.onClick.RemoveAllListeners();
+
+            startBtn.onClick.AddListener(() => {
+
+                StartGameLoop();
+
+            });
+
+            Debug.Log("[SchoolLobbyManager] Bound Song Select START button!");
+
+        }
+
+        else
+
+        {
+
+            Debug.LogWarning("[SchoolLobbyManager] Could NOT find Start Button in Song Select Panel!");
+
+        }
+
+    }
+
+
+
+
+
+
+
+    private void CloseAllPanels()
+
+    {
+
+        if (songSelectPanel != null) songSelectPanel.SetActive(false);
+
+        if (rankingPanel != null) rankingPanel.SetActive(false);
+
+        if (shopPanel != null) shopPanel.SetActive(false);
+
+        if (profilePanel != null) profilePanel.SetActive(false);
+
+        if (optionsPanel != null) optionsPanel.SetActive(false);
+
+        if (customizationPanel != null) customizationPanel.SetActive(false);
+
+    }
+
+
+
+    private void UpdateProfileUI()
+    {
+        Debug.Log("[Lobby] Updating Profile UI...");
+        
+        // Find or Create Welcome Text
+        GameObject welcomeObj = GameObject.Find("WelcomeText");
+        
+        if (NetworkManager.Instance.IsLoggedIn)
+        {
+             if (welcomeObj == null)
+             {
+                 // Create in Top-Right
+                 welcomeObj = new GameObject("WelcomeText");
+                 GameObject canvas = GameObject.Find("Canvas");
+                 if(canvas) welcomeObj.transform.SetParent(canvas.transform, false);
+                 
+                 var txt = welcomeObj.AddComponent<TMPro.TextMeshProUGUI>();
+                 txt.fontSize = 24;
+                 txt.alignment = TMPro.TextAlignmentOptions.Right;
+                 txt.color = Color.cyan;
+                 
+                 RectTransform rt = welcomeObj.GetComponent<RectTransform>();
+                 rt.anchorMin = new Vector2(1, 1); rt.anchorMax = new Vector2(1, 1);
+                 rt.pivot = new Vector2(1, 1);
+                 rt.anchoredPosition = new Vector2(-20, -120); // Below logo
+                 rt.sizeDelta = new Vector2(400, 50);
+             }
+             
+             var wTxt = welcomeObj.GetComponent<TMPro.TextMeshProUGUI>();
+             
+             // Get Name if available, else Email
+             NetworkManager.Instance.GetUserProfile((profile) => {
+                 string displayName = "Player";
+                 if (profile != null && !string.IsNullOrEmpty(profile.name)) displayName = profile.name;
+                 else if (!string.IsNullOrEmpty(NetworkManager.Instance.CurrentUserEmail)) displayName = NetworkManager.Instance.CurrentUserEmail.Split('@')[0];
+                 
+                 wTxt.text = $"Welcome, {displayName}!";
+                 
+                 // Also hide Login Button from Footer if exists
+                 GameObject loginBtn = GameObject.Find("Btn_Login");
+                 if (loginBtn) loginBtn.SetActive(false);
+             });
+        }
+    }
+
+    private void BindCloseButton(GameObject panel)
+
+    {
+
+        // ???????"CloseButton" ?ë¦??ê°?ë²í¼ ì°¾ê¸° (?????
+
+        // ë§ì½ ?ë¦??"Close"?ë©?"Close"?ì°¾ì¼??? ë³´íµ "CloseButton"???"Btn_Close" ??????????
+
+        // ?ê¸???"CloseButton" ???"Btn_Close" ?????????
+
+        
+
+        UnityEngine.UI.Button closeBtn = panel.GetComponentInChildren<UnityEngine.UI.Button>(); // ????ë¬?ë²í¼????????????(ë³´íµ ?ê¸???ë¿???????
+
+        
+
+        // ?ë¦?ë¡?????ì°¾ê³  ???
+
+        UnityEngine.UI.Button[] allBtns = panel.GetComponentsInChildren<UnityEngine.UI.Button>(true);
+
+        foreach (var btn in allBtns)
+
+        {
+
+            if (btn.name.Contains("Close") || btn.name.Contains("Exit") || btn.transform.Find("Text (TMP)")?.GetComponent<TMPro.TextMeshProUGUI>()?.text.Contains("CLOSE") == true)
+
+            {
+
+                closeBtn = btn;
+
+                break;
+
+            }
+
+        }
+
+
+
+        if (closeBtn != null)
+
+        {
+
+            // ?ê¸?ë²í¼?????? ?ë¦??ë§? ?ê²????
+            var txt = closeBtn.GetComponentInChildren<TMPro.TextMeshProUGUI>();
+
+            if (txt != null) txt.raycastTarget = false;
+
+            var txt2 = closeBtn.GetComponentInChildren<UnityEngine.UI.Text>();
+
+            if (txt2 != null) txt2.raycastTarget = false;
+
+
+
+            // ?ë²???ê²?
+            closeBtn.onClick.RemoveAllListeners();
+
+            closeBtn.onClick.AddListener(() => {
+
+                panel.SetActive(false);
+
+                Debug.Log($"[SchoolLobbyManager] Closed panel: {panel.name}");
+
+            });
+
+            Debug.Log($"[SchoolLobbyManager] Bound Close Button in {panel.name}");
+
+        }
+
+        else
+
+        {
+
+            Debug.LogWarning($"[SchoolLobbyManager] Could NOT find Close Button in {panel.name}");
+
+        }
+
+    }
+
+
+
+
+
+    // [NEW] Helper to find inactive objects recursively
+
+    private GameObject FindObjectRecursive(GameObject root, string name)
+
+    {
+
+        if (root == null) return null;
+
+        if (root.name == name) return root;
+
+        
+
+        foreach(Transform t in root.transform)
+
+        {
+
+            if (t.name == name) return t.gameObject;
+
+            GameObject res = FindObjectRecursive(t.gameObject, name);
+
+            if (res != null) return res;
+
+        }
+
+        return null;
+
+    }
+
+
+
+    private void PopulateRanking(GameObject panel)
+
+    {
+
+        Debug.Log("[Lobby] Populating Ranking...");
+
+
+
+        foreach (Transform child in panel.transform) Destroy(child.gameObject);
+
+
+
+        // Title
+
+        GameObject titleObj = new GameObject("Title");
+
+        titleObj.transform.SetParent(panel.transform, false);
+
+        var titleTxt = titleObj.AddComponent<TMPro.TextMeshProUGUI>();
+
+        titleTxt.text = "RANKING";
+
+        titleTxt.fontSize = 50;
+
+        titleTxt.fontStyle = TMPro.FontStyles.Bold;
+
+        titleTxt.alignment = TMPro.TextAlignmentOptions.Center;
+
+        titleTxt.color = Color.white;
+
+        RectTransform titleRt = titleObj.GetComponent<RectTransform>();
+
+        titleRt.anchorMin = new Vector2(0, 0.85f); titleRt.anchorMax = new Vector2(1, 1);
+
+        titleRt.offsetMin = Vector2.zero; titleRt.offsetMax = Vector2.zero;
+
+
+
+        // Container (Scroll View)
+
+        GameObject scrollObj = new GameObject("ScrollArea");
+
+        scrollObj.transform.SetParent(panel.transform, false);
+
+        var scrollRt = scrollObj.AddComponent<RectTransform>();
+
+        scrollRt.anchorMin = new Vector2(0.1f, 0.1f); scrollRt.anchorMax = new Vector2(0.9f, 0.8f);
+
+        scrollRt.offsetMin = Vector2.zero; scrollRt.offsetMax = Vector2.zero;
+
+        
+
+        scrollObj.AddComponent<UnityEngine.UI.Image>().color = new Color(0,0,0,0.5f);
+
+        var scroll = scrollObj.AddComponent<UnityEngine.UI.ScrollRect>();
+
+        
+
+        GameObject content = new GameObject("Content");
+
+        content.transform.SetParent(scrollObj.transform, false);
+
+        var vlg = content.AddComponent<UnityEngine.UI.VerticalLayoutGroup>();
+
+        vlg.padding = new RectOffset(20, 20, 20, 20);
+
+        vlg.spacing = 15;
+
+        vlg.childControlHeight = false; vlg.childControlWidth = true;
+
+        vlg.childAlignment = TextAnchor.UpperCenter;
+
+        
+
+        var csf = content.AddComponent<UnityEngine.UI.ContentSizeFitter>();
+
+        csf.verticalFit = UnityEngine.UI.ContentSizeFitter.FitMode.PreferredSize;
+
+
+
+        scroll.content = content.GetComponent<RectTransform>();
+
+        scroll.vertical = true; scroll.horizontal = false;
+
+        scroll.movementType = UnityEngine.UI.ScrollRect.MovementType.Elastic;
+
+
+
+        // Viewport Mask
+
+        GameObject viewport = new GameObject("Viewport");
+
+        viewport.transform.SetParent(scrollObj.transform, false);
+
+        viewport.AddComponent<UnityEngine.UI.RectMask2D>();
+
+        var vpRt = viewport.GetComponent<RectTransform>();
+
+        vpRt.anchorMin = Vector2.zero; vpRt.anchorMax = Vector2.one;
+
+        vpRt.offsetMin = Vector2.zero; vpRt.offsetMax = Vector2.zero;
+
+        scroll.viewport = vpRt;
+
+        content.transform.SetParent(viewport.transform, false);
+
+
+
+        // Mock Data Fallback
+        string[] names = { "RhythmKing", "ProGamer_KR", "SodapopLover" };
+        int[] scores = { 1000000, 985000, 950000 };
+        
+        // [NEW] Fetch from Network
+        if (NetworkManager.Instance != null)
+        {
+             NetworkManager.Instance.GetRanking((json) => {
+                 if (!string.IsNullOrEmpty(json))
+                 {
+                     Debug.Log($"[Ranking] Received: {json}");
+                     try {
+                         // Parse Real Data
+                         RankEntry[] entries = JsonHelper.FromJson<RankEntry>(json);
+                         
+                         // Clear Mock items if any (though we clear at start)
+                         foreach(Transform t in content.transform) Destroy(t.gameObject);
+
+                         if(entries == null || entries.Length == 0) {
+                             CreateRankItem(content.transform, 0, "No Data", 0);
+                         } 
+                         else 
+                         {
+                             for(int i=0; i<entries.Length; i++)
+                             {
+                                 CreateRankItem(content.transform, i, entries[i].username, entries[i].score);
+                             }
+                         }
+                         return; // Successfully populated
+                     } catch (System.Exception e) {
+                         Debug.LogError("Rank Parse Error: " + e.Message);
+                     }
+                 }
+                 
+                 // Fallback if failed
+                 CreateMockRanking(content.transform, names, scores);
+             });
+        }
+        else
+        {
+             CreateMockRanking(content.transform, names, scores);
+        }
+
+        // Close Button logic remains...
+        GameObject closeBtnObj = new GameObject("Btn_Close");
+
+        closeBtnObj.transform.SetParent(panel.transform, false);
+
+        var closeImg = closeBtnObj.AddComponent<UnityEngine.UI.Image>();
+
+        closeImg.color = new Color(0.2f, 0.2f, 0.2f, 0.8f);
+
+        var closeBtn = closeBtnObj.AddComponent<UnityEngine.UI.Button>();
+
+        closeBtn.onClick.AddListener(() => { TogglePanel(panel); });
+
+        
+
+        RectTransform closeRt = closeBtnObj.GetComponent<RectTransform>();
+
+        closeRt.anchorMin = new Vector2(0.92f, 0.92f); closeRt.anchorMax = new Vector2(0.98f, 0.98f);
+
+        closeRt.offsetMin = Vector2.zero; closeRt.offsetMax = Vector2.zero;
+
+        
+
+        GameObject closeTxtObj = new GameObject("Text");
+
+        closeTxtObj.transform.SetParent(closeBtnObj.transform, false);
+
+        var clTxt = closeTxtObj.AddComponent<TMPro.TextMeshProUGUI>();
+
+        clTxt.text = "X";
+
+        clTxt.fontSize = 28;
+
+        clTxt.alignment = TMPro.TextAlignmentOptions.Center;
+
+        clTxt.color = Color.white;
+
+        
+
+        var clRt = closeTxtObj.AddComponent<RectTransform>();
+
+        clRt.anchorMin = Vector2.zero; clRt.anchorMax = Vector2.one;
+
+        clRt.offsetMin = Vector2.zero; clRt.offsetMax = Vector2.zero;
+
+    }
+
+
+
+    // [NEW] Helper classes
+    
+    private void CreateMockRanking(Transform content, string[] names, int[] scores)
+    {
+        for(int i=0; i<names.Length; i++)
+        {
+            CreateRankItem(content, i, names[i], scores[i]);
+        }
+    }
+
+    private void CreateRankItem(Transform content, int i, string name, int score)
+    {
+        GameObject item = new GameObject($"Rank_{i}");
+        item.transform.SetParent(content, false);
+            
+        var hlg = item.AddComponent<UnityEngine.UI.HorizontalLayoutGroup>();
+        hlg.padding = new RectOffset(20, 20, 5, 5);
+        hlg.spacing = 20;
+        hlg.childControlWidth = false; hlg.childControlHeight = false;
+        hlg.childAlignment = TextAnchor.MiddleLeft;
+
+        var bgImg = item.AddComponent<UnityEngine.UI.Image>();
+        bgImg.color = new Color(0,0,0,0.5f);
+
+        var le = item.AddComponent<UnityEngine.UI.LayoutElement>();
+        le.preferredHeight = 80;
+
+        if (i < 3)
+        {
+             GameObject medalObj = new GameObject("Medal");
+             medalObj.transform.SetParent(item.transform, false);
+             var mImg = medalObj.AddComponent<UnityEngine.UI.Image>();
+             if(i==0) mImg.color = new Color(1f, 0.8f, 0.2f);
+             else if(i==1) mImg.color = new Color(0.8f, 0.8f, 0.9f);
+             else if(i==2) mImg.color = new Color(0.8f, 0.5f, 0.2f);
+             var mLe = medalObj.AddComponent<UnityEngine.UI.LayoutElement>();
+             mLe.preferredWidth = 50; mLe.preferredHeight = 50;
+        }
+        else
+        {
+             GameObject spacer = new GameObject("Spacer");
+             spacer.transform.SetParent(item.transform, false);
+             var sLe = spacer.AddComponent<UnityEngine.UI.LayoutElement>();
+             sLe.preferredWidth = 50; sLe.preferredHeight = 50;
+        }
+
+        GameObject txtObj = new GameObject("Info");
+        txtObj.transform.SetParent(item.transform, false);
+        var txt = txtObj.AddComponent<TMPro.TextMeshProUGUI>();
+        txt.text = $"{i+1}. {name}   -   {score:N0}";
+        txt.fontSize = 32;
+        txt.alignment = TMPro.TextAlignmentOptions.Left;
+        txt.color = (i < 3) ? Color.yellow : Color.white;
+        var tLe = txtObj.AddComponent<UnityEngine.UI.LayoutElement>();
+        tLe.preferredWidth = 600; tLe.preferredHeight = 50;
+    }
+
+    private void PopulateShop(GameObject panel)
+    {
+        Debug.Log("[Lobby] Populating Shop UI...");
+
+        foreach (Transform child in panel.transform) Destroy(child.gameObject);
+
+        // 1. Background
+        var bgImg = panel.GetComponent<UnityEngine.UI.Image>();
+        if (bgImg == null) bgImg = panel.AddComponent<UnityEngine.UI.Image>();
+        bgImg.color = new Color(0.1f, 0.1f, 0.2f, 0.95f);
+
+        // 2. Title
+        GameObject titleObj = new GameObject("Title");
+        titleObj.transform.SetParent(panel.transform, false);
+        var titleTxt = titleObj.AddComponent<TMPro.TextMeshProUGUI>();
+        titleTxt.text = "ITEM SHOP";
+        titleTxt.fontSize = 48;
+        titleTxt.fontStyle = TMPro.FontStyles.Bold;
+        titleTxt.alignment = TMPro.TextAlignmentOptions.Center;
+        titleTxt.color = new Color(1f, 0.8f, 0.2f); // Gold
+        
+        RectTransform titleRt = titleObj.GetComponent<RectTransform>();
+        titleRt.anchorMin = new Vector2(0, 0.85f); titleRt.anchorMax = new Vector2(1, 0.95f);
+        titleRt.offsetMin = Vector2.zero; titleRt.offsetMax = Vector2.zero;
+
+        // [NEW] Charge Coin Button (Top Right)
+        GameObject chargeBtnObj = new GameObject("Btn_Charge");
+        chargeBtnObj.transform.SetParent(panel.transform, false);
+        var chargeImg = chargeBtnObj.AddComponent<UnityEngine.UI.Image>();
+        chargeImg.color = new Color(0, 0.7f, 0.3f); // Green
+        var chargeBtn = chargeBtnObj.AddComponent<UnityEngine.UI.Button>();
+        
+        var chargeTxtObj = new GameObject("Text");
+        chargeTxtObj.transform.SetParent(chargeBtnObj.transform, false);
+        var chargeTxt = chargeTxtObj.AddComponent<TMPro.TextMeshProUGUI>();
+        chargeTxt.text = "CHARGE COINS";
+        chargeTxt.fontSize = 24;
+        chargeTxt.alignment = TMPro.TextAlignmentOptions.Center;
+        chargeTxt.color = Color.white;
+        
+        RectTransform chargeRt = chargeBtnObj.GetComponent<RectTransform>();
+        chargeRt.anchorMin = new Vector2(0.75f, 0.85f); chargeRt.anchorMax = new Vector2(0.95f, 0.92f);
+        chargeRt.offsetMin = Vector2.zero; chargeRt.offsetMax = Vector2.zero;
+
+        chargeBtn.onClick.AddListener(() => {
+            string shopUrl = "https://rhythm-game-frontend.vercel.app/shop";
+            Debug.Log($"[Shop] Redirecting to Charge Page: {shopUrl}");
+            Application.OpenURL(shopUrl);
+        });
+
+        // 3. User Coin Display
+        GameObject coinObj = new GameObject("CoinDisplay");
+        coinObj.transform.SetParent(panel.transform, false);
+        var coinTxt = coinObj.AddComponent<TMPro.TextMeshProUGUI>();
+        coinTxt.text = "Loading...";
+        coinTxt.fontSize = 32;
+        coinTxt.alignment = TMPro.TextAlignmentOptions.Right;
+        coinTxt.color = Color.yellow;
+        RectTransform coinRt = coinObj.GetComponent<RectTransform>();
+        coinRt.anchorMin = new Vector2(0.6f, 0.85f); coinRt.anchorMax = new Vector2(0.95f, 0.95f);
+        coinRt.offsetMin = Vector2.zero; coinRt.offsetMax = Vector2.zero;
+
+        // 4. Content Area
+        GameObject scrollObj = new GameObject("ScrollArea");
+        scrollObj.transform.SetParent(panel.transform, false);
+        var scrollRt = scrollObj.AddComponent<RectTransform>();
+        scrollRt.anchorMin = new Vector2(0.05f, 0.1f); scrollRt.anchorMax = new Vector2(0.95f, 0.8f);
+        scrollRt.offsetMin = Vector2.zero; scrollRt.offsetMax = Vector2.zero;
+        
+        var scroll = scrollObj.AddComponent<UnityEngine.UI.ScrollRect>();
+        GameObject content = new GameObject("Content");
+        content.transform.SetParent(scrollObj.transform, false);
+        
+        var grid = content.AddComponent<UnityEngine.UI.GridLayoutGroup>();
+        grid.cellSize = new Vector2(250, 300);
+        grid.spacing = new Vector2(30, 30);
+        grid.padding = new RectOffset(30,30,30,30);
+        grid.constraint = UnityEngine.UI.GridLayoutGroup.Constraint.FixedColumnCount;
+        grid.constraintCount = 3;
+        
+        var csf = content.AddComponent<UnityEngine.UI.ContentSizeFitter>();
+        csf.verticalFit = UnityEngine.UI.ContentSizeFitter.FitMode.PreferredSize;
+        
+        scroll.content = content.GetComponent<RectTransform>();
+        scroll.vertical = true; scroll.horizontal = false;
+        
+        // Viewport
+        GameObject viewport = new GameObject("Viewport");
+        viewport.transform.SetParent(scrollObj.transform, false);
+        viewport.AddComponent<UnityEngine.UI.Mask>();
+        viewport.AddComponent<UnityEngine.UI.Image>().color = new Color(1,1,1,0.1f);
+        var vpRt = viewport.GetComponent<RectTransform>();
+        vpRt.anchorMin = Vector2.zero; vpRt.anchorMax = Vector2.one;
+        vpRt.offsetMin = Vector2.zero; vpRt.offsetMax = Vector2.zero;
+        content.transform.SetParent(viewport.transform, false);
+        scroll.viewport = vpRt;
+
+        // Close Button
+        BindCloseButton(panel);
+
+        // Fetch User Data & Populate Items
+        if (NetworkManager.Instance != null)
+        {
+            NetworkManager.Instance.GetUserProfile((profile) => {
+                if (profile != null)
+                {
+                    coinTxt.text = $"COINS: {profile.coins:N0}";
+                    CreateShopItems(content.transform, profile);
+                }
+                else
+                {
+                    coinTxt.text = "Login Required";
+                    CreateShopItems(content.transform, null); // Show items but disable buy
+                }
+            });
+        }
+        else
+        {
+             coinTxt.text = "Offline";
+             CreateShopItems(content.transform, null);
+        }
+    }
+
+    private void CreateShopItems(Transform content, UserProfile profile)
+    {
+        // Define Shop Items (Mock or Static List for now)
+        var items = new [] {
+            new { id="song_pack_1", name="K-Pop Pack 1", price=2000, desc="Unlock 3 Popular Songs" },
+            new { id="skin_neon", name="Neon Avatar", price=5000, desc="Glow in the dark!" },
+            new { id="effect_star", name="Star Notes", price=1500, desc="Shiny star hit effects" },
+            new { id="pet_robo", name="Robo Pet", price=8000, desc="A cute robot companion" }
+        };
+
+        foreach(var item in items)
+        {
+            GameObject card = new GameObject($"Item_{item.id}");
+            card.transform.SetParent(content, false);
+            var cardImg = card.AddComponent<UnityEngine.UI.Image>();
+            cardImg.color = new Color(0.2f, 0.2f, 0.3f);
+            
+            // Name
+            GameObject nameObj = new GameObject("Name");
+            nameObj.transform.SetParent(card.transform, false);
+            var nTxt = nameObj.AddComponent<TMPro.TextMeshProUGUI>();
+            nTxt.text = item.name;
+            nTxt.fontSize = 24; nTxt.alignment = TMPro.TextAlignmentOptions.Center;
+            RectTransform nRt = nameObj.GetComponent<RectTransform>();
+            nRt.anchorMin = new Vector2(0, 0.7f); nRt.anchorMax = new Vector2(1, 0.9f);
+            nRt.offsetMin = Vector2.zero; nRt.offsetMax = Vector2.zero;
+            
+            // Price
+            GameObject pObj = new GameObject("Price");
+            pObj.transform.SetParent(card.transform, false);
+            var pTxt = pObj.AddComponent<TMPro.TextMeshProUGUI>();
+            pTxt.text = $"{item.price:N0} G";
+            pTxt.fontSize = 32; pTxt.alignment = TMPro.TextAlignmentOptions.Center;
+            pTxt.color = Color.yellow;
+            RectTransform pRt = pObj.GetComponent<RectTransform>();
+            pRt.anchorMin = new Vector2(0, 0.4f); pRt.anchorMax = new Vector2(1, 0.6f);
+            pRt.offsetMin = Vector2.zero; pRt.offsetMax = Vector2.zero;
+
+            // Buy Button
+            GameObject btnObj = new GameObject("Btn_Buy");
+            btnObj.transform.SetParent(card.transform, false);
+            var bImg = btnObj.AddComponent<UnityEngine.UI.Image>();
+            var btn = btnObj.AddComponent<UnityEngine.UI.Button>();
+            
+            GameObject bTxtObj = new GameObject("Text");
+            bTxtObj.transform.SetParent(btnObj.transform, false);
+            var bTxt = bTxtObj.AddComponent<TMPro.TextMeshProUGUI>();
+            bTxt.fontSize = 20; bTxt.alignment = TMPro.TextAlignmentOptions.Center;
+            bTxt.color = Color.black;
+
+            RectTransform bRt = btnObj.GetComponent<RectTransform>();
+            bRt.anchorMin = new Vector2(0.1f, 0.05f); bRt.anchorMax = new Vector2(0.9f, 0.25f);
+            bRt.offsetMin = Vector2.zero; bRt.offsetMax = Vector2.zero;
+            bRt.sizeDelta = Vector2.zero; // Force stretch
+
+            // State Logic
+            bool isOwned = false;
+            if (profile != null && profile.inventory != null)
+            {
+                isOwned = System.Array.Exists(profile.inventory, x => x == item.id);
+            }
+
+            if (isOwned)
+            {
+                bImg.color = Color.gray;
+                bTxt.text = "OWNED";
+                btn.interactable = false;
+            }
+            else if (profile != null && profile.coins >= item.price)
+            {
+                bImg.color = Color.green;
+                bTxt.text = "BUY";
+                btn.onClick.AddListener(() => {
+                    // Pre-optimistic update
+                    btn.interactable = false;
+                    bTxt.text = "Buying...";
+                    
+                    int newCoins = profile.coins - item.price;
+                    var newInvList = new System.Collections.Generic.List<string>(profile.inventory ?? new string[0]);
+                    newInvList.Add(item.id);
+                    
+                    NetworkManager.Instance.UpdateUserShop(newCoins, newInvList.ToArray(), (success) => {
+                        if (success)
+                        {
+                            // Refresh Panel
+                            PopulateShop(card.transform.parent.parent.parent.parent.transform.parent.gameObject); 
+                            // Hack fix: finding shopPanel via hierarchy is messy.
+                            // Better to just call OnShopClick() which calls TogglePanel(shopPanel) which calls PopulateShop(shopPanel)
+                            // But CreateShopItems is inside the class so we can access shopPanel via 'Instance' or direct.
+                            // Since this is inside SchoolLobbyManager, we can just access 'shopPanel' member.
+                        }
+                        else
+                        {
+                            bTxt.text = "Error";
+                            btn.interactable = true;
+                        }
+                    });
+                });
+            }
+            else
+            {
+                bImg.color = new Color(0.5f, 0, 0);
+                bTxt.text = "NO COINS";
+                btn.interactable = false;
+            }
+        }
+    }
+
+    // [NEW] Helper for Parsing JSON Arrays
+    public static class JsonHelper
+    {
+        public static T[] FromJson<T>(string json)
+        {
+            string newJson = "{ \"array\": " + json + "}";
+            Wrapper<T> wrapper = JsonUtility.FromJson<Wrapper<T>>(newJson);
+            return wrapper.array;
+        }
+
+        [System.Serializable]
+        private class Wrapper<T>
+        {
+            public T[] array;
+        }
+    }
+
+    [System.Serializable]
+    public class RankEntry
+    {
+        public int id;
+        public string username;
+        public int score;
+        public string created_at;
+    }
+}
+

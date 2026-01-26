@@ -1,0 +1,101 @@
+# ===================================
+# Unity 프로젝트 최적화 .gitignore
+# ===================================
+
+# Unity 생성 파일 (재생성 가능) - 가장 큰 용량 차지
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+
+# Unity 캐시 및 임시 파일
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# Unity 자동 생성 파일
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+
+# OS 생성 파일
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
+
+# Visual Studio 캐시
+.vs/
+.vscode/
+*.code-workspace
+
+# Rider
+.idea/
+*.sln.iml
+
+# Node.js (Frontend)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnp
+.pnp.js
+
+# Frontend 빌드 파일
+Frontend/dist/
+Frontend/build/
+Frontend/.vite/
+
+# 환경 변수 (민감 정보)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production
+
+# Git LFS 캐시
+.git/lfs/
+
+# 인증 키 파일 (민감 정보)
+*.pem
+key.pem
+cert.pem
+
+# 문제가 있는 LFS 파일들 (로컬에 없음)
+Assets/MMD4Mecanim/Editor/PMX2FBX/pmx2fbx.exe
+Assets/MMD4Mecanim/Editor/PMX2FBX/pmx2fbx_275.exe
+Assets/MMD4Mecanim/Plugins/MMD4MecanimBulletPhysics/Android/libs/x86/libMMD4MecanimBulletPhysics.so
+Assets/MMD4Mecanim/Plugins/MMD4MecanimBulletPhysics 2.75/Android/libs/x86/libMMD4MecanimBulletPhysics.so
+Assets/MMD4Mecanim/Plugins/MMD4MecanimBulletPhysics/Android/libs/armeabi-v7a/libMMD4MecanimBulletPhysics.so
+Assets/MMD4Mecanim/Plugins/MMD4MecanimBulletPhysics 2.75/Android/libs/armeabi-v7a/libMMD4MecanimBulletPhysics.so
+
+# ===================================
+# 구글 드라이브 업로드 전 삭제 대상
+# ===================================
+# 아래 폴더들은 Unity가 자동으로 재생성하므로
+# 구글 드라이브에 올리기 전 삭제해도 안전합니다:
+# - Library/ (가장 큰 용량, 1-2GB)
+# - Temp/ (임시 파일)
+# - Logs/ (로그 파일)
+# - obj/ (빌드 캐시)
+# - Frontend/node_modules/ (npm install로 재생성)
+# - Frontend/dist/ (빌드 결과물)

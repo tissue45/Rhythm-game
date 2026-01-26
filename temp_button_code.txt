@@ -1,0 +1,110 @@
+﻿    private void CreateButton(Transform parent, string name, string text, Vector2 position, Color bgColor, Color textColor, Sprite sprite, Vector2 size, UnityEngine.Events.UnityAction action)
+    {
+        GameObject btnObj = FindChild(parent.gameObject, name);
+        if (btnObj == null)
+        {
+            btnObj = new GameObject(name);
+            btnObj.transform.SetParent(parent, false);
+            
+            Image img = btnObj.AddComponent<Image>();
+            
+            // ?��?지가 ?�으�??��?지 ?�용, ?�으�??�상 ?�용
+            if (sprite != null)
+            {
+                img.sprite = sprite;
+                img.color = Color.white; // ?��?지가 ?�으�??�색(?�본??
+                img.preserveAspect = true;
+                img.alphaHitTestMinimumThreshold = 0.1f; // [FIX] ?�명??부�??�릭 무시
+            }
+            else
+            {
+                img.color = bgColor;
+            }
+
+            Button btn = btnObj.AddComponent<Button>();
+
+            // ?�스??(?��?지가 ?�을 ?�만 ?�성)
+            GameObject txtObj = FindChild(btnObj, "Text");
+            if (sprite == null)
+            {
+                if (txtObj == null)
+                {
+                    txtObj = new GameObject("Text");
+                    txtObj.transform.SetParent(btnObj.transform, false);
+                    TextMeshProUGUI txt = txtObj.AddComponent<TextMeshProUGUI>();
+                    txt.text = text;
+                    txt.fontSize = 40; 
+                    txt.alignment = TextAlignmentOptions.Center;
+                    txt.color = textColor; 
+                    txt.fontStyle = FontStyles.Bold | FontStyles.Italic;
+                    
+                    RectTransform txtRt = txtObj.GetComponent<RectTransform>();
+                    txtRt.anchorMin = Vector2.zero;
+                    txtRt.anchorMax = Vector2.one;
+                    txtRt.offsetMin = Vector2.zero;
+                    txtRt.offsetMax = Vector2.zero;
+                }
+            }
+            else
+            {
+                // ?��?지가 ?�는???�스???�브?�트가 ?�아?�으�???�� (깔끔?�게)
+                if (txtObj != null) DestroyImmediate(txtObj);
+            }
+
+            RectTransform rt = btnObj.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0.5f, 0.5f); 
+            rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = size; // ?�용??지???�이�??�용
+            rt.anchoredPosition = position;
+            
+            ColorBlock colors = btn.colors;
+            if (sprite == null)
+            {
+                colors.normalColor = bgColor;
+                colors.highlightedColor = bgColor + new Color(0.1f, 0.1f, 0.1f);
+                colors.pressedColor = bgColor - new Color(0.1f, 0.1f, 0.1f);
+                colors.selectedColor = bgColor;
+            }
+            else
+            {
+                colors.normalColor = Color.white;
+                colors.highlightedColor = new Color(0.9f, 0.9f, 0.9f);
+                colors.pressedColor = new Color(0.7f, 0.7f, 0.7f);
+                colors.selectedColor = Color.white;
+            }
+            btn.colors = colors;
+        }
+        else
+        {
+            // ?��? 존재?????�데?�트 로직
+            Image img = btnObj.GetComponent<Image>();
+            GameObject txtObj = FindChild(btnObj, "Text");
+
+            if (sprite != null)
+            {
+                img.sprite = sprite;
+                img.color = Color.white;
+                img.preserveAspect = true;
+                img.alphaHitTestMinimumThreshold = 0.1f; // [FIX] ?�명??부�??�릭 무시
+                if (txtObj != null) DestroyImmediate(txtObj);
+            }
+            
+            // ?�이�??�데?�트
+            RectTransform rt = btnObj.GetComponent<RectTransform>();
+            if (rt != null) 
+            {
+                rt.sizeDelta = size;
+                rt.anchoredPosition = position; // [FIX] ?�치??같이 ?�데?�트
+            }
+
+            // 그림???�웃?�인 ?�거 (깔끔?�게)
+            Shadow shadow = btnObj.GetComponent<Shadow>();
+            if (shadow != null) DestroyImmediate(shadow);
+            Outline outline = btnObj.GetComponent<Outline>();
+            if (outline != null) DestroyImmediate(outline);
+            
+            // ?��???리스???�연�?
+            Button btn = btnObj.GetComponent<Button>();
+            if (btn != null)
+            {
+                // [FIX] 버튼 ?�상 ?�태??같이 ?�데?�트?�야 ??
