@@ -42,6 +42,14 @@ jobs:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
           VITE_TOSS_CLIENT_KEY: ${{ secrets.VITE_TOSS_CLIENT_KEY }}
 
+      - name: Verify build output
+        working-directory: ./Frontend
+        run: |
+          echo "Build output contents:"
+          ls -la dist/
+          echo "Checking for index.html:"
+          test -f dist/index.html && echo "✓ index.html exists" || echo "✗ index.html missing"
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StepUp - Rhythm Action School</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Gamja+Flower&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet">
+    <script>
+      // GitHub Pages SPA 라우팅 지원
+      // 404.html을 index.html로 리다이렉트
+      var pathSegmentsToKeep = 1;
+      var l = window.location;
+      var basePath = '/Rhythm-game/';
+      var redirectPath = basePath + 'index.html';
+      
+      // 현재 경로에서 base 경로를 제거하고 쿼리 파라미터로 전달
+      var currentPath = l.pathname.replace(basePath, '');
+      if (currentPath && currentPath !== '/') {
+        redirectPath += '?p=' + encodeURIComponent(currentPath);
+      }
+      
+      window.location.replace(redirectPath + l.search + l.hash);
+    </script>
+  </head>
+  <body>
+    <div id="root" style="background-color: black; color: white; display: flex; justify-content: center; align-items: center; height: 100vh;">
+      Loading App...
+    </div>
+    <script type="module" src="/Rhythm-game/index.js"></script>
+  </body>
+</html>
