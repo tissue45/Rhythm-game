@@ -11,7 +11,7 @@
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist"
   },
-  "homepage": "https://sohee9010.github.io/rhythm-game-website",
+  "homepage": "https://tissue45.github.io/Rhythm-game",
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
     "@tanstack/react-query": "^4.35.0",
