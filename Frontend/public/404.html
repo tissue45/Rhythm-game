@@ -10,20 +10,67 @@
       href="https://fonts.googleapis.com/css2?family=Gamja+Flower&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap"
       rel="stylesheet">
     <script>
+      // 디버그 로그 시작
+      console.log('=== GitHub Pages 디버그 로그 ===');
+      console.log('현재 URL:', window.location.href);
+      console.log('현재 경로:', window.location.pathname);
+      console.log('현재 호스트:', window.location.host);
+      console.log('현재 프로토콜:', window.location.protocol);
+      
+      // 페이지 정보
+      console.log('문서 제목:', document.title);
+      console.log('문서 URL:', document.URL);
+      console.log('문서 위치:', document.location.href);
+      
+      // 스크립트 로드 확인
+      var scripts = document.getElementsByTagName('script');
+      console.log('로드된 스크립트 개수:', scripts.length);
+      for (var i = 0; i < scripts.length; i++) {
+        console.log('스크립트 ' + i + ':', scripts[i].src || scripts[i].innerHTML.substring(0, 50));
+      }
+      
+      // body 내용 확인
+      console.log('Body 내용:', document.body.innerHTML.substring(0, 200));
+      
       // GitHub Pages SPA 라우팅 지원
-      // 404.html을 index.html로 리다이렉트
       var pathSegmentsToKeep = 1;
       var l = window.location;
       var basePath = '/Rhythm-game/';
       var redirectPath = basePath + 'index.html';
       
+      console.log('Base 경로:', basePath);
+      console.log('리다이렉트 경로:', redirectPath);
+      
       // 현재 경로에서 base 경로를 제거하고 쿼리 파라미터로 전달
       var currentPath = l.pathname.replace(basePath, '');
+      console.log('현재 경로 (base 제거 후):', currentPath);
+      
       if (currentPath && currentPath !== '/') {
         redirectPath += '?p=' + encodeURIComponent(currentPath);
+        console.log('쿼리 파라미터 추가:', redirectPath);
       }
       
-      window.location.replace(redirectPath + l.search + l.hash);
+      console.log('최종 리다이렉트 경로:', redirectPath + l.search + l.hash);
+      console.log('리다이렉트 실행...');
+      
+      // 화면에 디버그 정보 표시
+      var debugInfo = document.createElement('div');
+      debugInfo.style.cssText = 'position:fixed;top:0;left:0;background:rgba(0,0,0,0.9);color:#0f0;padding:20px;z-index:99999;font-family:monospace;font-size:12px;max-width:80%;max-height:80%;overflow:auto;';
+      debugInfo.innerHTML = '<h3>🔍 GitHub Pages 디버그 정보</h3>' +
+        '<p><strong>현재 URL:</strong> ' + window.location.href + '</p>' +
+        '<p><strong>현재 경로:</strong> ' + window.location.pathname + '</p>' +
+        '<p><strong>문서 제목:</strong> ' + document.title + '</p>' +
+        '<p><strong>문서 URL:</strong> ' + document.URL + '</p>' +
+        '<p><strong>리다이렉트 경로:</strong> ' + (redirectPath + l.search + l.hash) + '</p>' +
+        '<p><strong>Body 내용 (처음 200자):</strong><br>' + document.body.innerHTML.substring(0, 200) + '</p>' +
+        '<p><strong>콘솔을 확인하세요 (F12)</strong></p>';
+      document.body.appendChild(debugInfo);
+      
+      // 3초 후 리다이렉트 (디버그 정보 확인 시간)
+      setTimeout(function() {
+        console.log('리다이렉트 실행 중...');
+        window.location.replace(redirectPath + l.search + l.hash);
+      }, 3000);
     </script>
   </head>
   <body>
