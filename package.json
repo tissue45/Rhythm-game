@@ -1,0 +1,14 @@
+{
+  "name": "step-up-unity-auth",
+  "version": "1.0.0",
+  "description": "Unity Authentication Bridge Server for Step Up",
+  "main": "unity_auth_server.js",
+  "scripts": {
+    "start": "node unity_auth_server.js",
+    "dev": "node unity_auth_server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^4.22.1"
+  }
+}
