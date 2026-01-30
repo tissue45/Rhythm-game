@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: rhythm-game-website
+    env: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    headers:
+      - path: /*
+        name: Cross-Origin-Opener-Policy
+        value: same-origin
+      - path: /*
+        name: Cross-Origin-Embedder-Policy
+        value: require-corp
+      - path: /game/*
+        name: Cross-Origin-Opener-Policy
+        value: same-origin
+      - path: /game/*
+        name: Cross-Origin-Embedder-Policy
+        value: require-corp
+    routes:
+      - type: rewrite
+        source: /controller
+        destination: /index.html
+      - type: rewrite
+        source: /*
+        destination: /index.html

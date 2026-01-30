@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Drum Controller</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            touch-action: none;
+            /* 중요: 브라우저 기본 터치 동작(확대, 스크롤) 방지 */
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #1a1a1a;
+            display: grid;
+            grid-template-areas:
+                "cymbal-l  cymbal-r"
+                "snare     tom"
+                "kick      kick";
+            grid-template-rows: 20% 30% 50%;
+            grid-template-columns: 1fr 1fr;
+            overflow: hidden;
+            font-family: sans-serif;
+        }
+
+        /* 공통 패드 스타일 */
+        .pad {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.5);
+            font-weight: bold;
+            font-size: 1.2rem;
+            transition: background 0.05s;
+            position: relative;
+        }
+
+        /* 터치 시 효과 */
+        .pad.active {
+            filter: brightness(1.5);
+            transform: scale(0.98);
+        }
+
+        /* 1. Hi-Hat/Cymbal (Top Left & Right) -> Lane 3 (Yellow) */
+        #pad-cymbal-l {
+            grid-area: cymbal-l;
+            background: #666600;
+            border-radius: 0 0 20px 0;
+        }
+
+        #pad-cymbal-r {
+            grid-area: cymbal-r;
+            background: #666600;
+            border-radius: 0 0 0 20px;
+        }
+
+        /* 2. Snare (Left Middle) -> Lane 0 (Red) */
+        #pad-snare {
+            grid-area: snare;
+            background: #660000;
+            border-radius: 0 20px 20px 0;
+        }
+
+        /* 3. Tom (Right Middle) -> Lane 2 (Blue) */
+        #pad-tom {
+            grid-area: tom;
+            background: #000066;
+            border-radius: 20px 0 0 20px;
+        }
+
+        /* 4. Kick (Bottom Center) -> Lane 1 (Green) */
+        #pad-kick {
+            grid-area: kick;
+            background: #003300;
+            border-radius: 20px 20px 0 0;
+            margin-top: 10px;
+        }
+
+        .label {
+            pointer-events: none;
+            text-shadow: 0 0 5px black;
+        }
+
+        /* 연결 상태 표시 */
+        #status {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 20px;
+            pointer-events: none;
+            z-index: 100;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="status" style="display:block;">Connecting... (If this stays, check PC firewall)</div>
+    <h1 style="color:white; position:absolute; top:0; left:0; z-index:999;">Controller Loaded</h1>
+
+    <!-- Layout -->
+    <div id="pad-cymbal-l" class="pad" data-lane="SIDE"><span class="label">HI-HAT</span></div>
+    <div id="pad-cymbal-r" class="pad" data-lane="SIDE"><span class="label">CRASH</span></div>
+
+    <div id="pad-snare" class="pad" data-lane="O"><span class="label">SNARE</span></div>
+    <div id="pad-tom" class="pad" data-lane="HIGH"><span class="label">TOM</span></div>
+
+    <div id="pad-kick" class="pad" data-lane="X"><span class="label">KICK (BASS)</span></div>
+
+    <script>
+        const socket = io();
+        const statusEl = document.getElementById('status');
+
+        socket.on('connect', () => {
+            console.log("Connected to server");
+            statusEl.innerText = "Connected!";
+            statusEl.style.display = "block";
+            setTimeout(() => statusEl.style.display = "none", 1000);
+
+            // 기존 서버 로직 호환을 위해 client_ready 전송
+            socket.emit('client_ready');
+        });
+
+        socket.on('disconnect', () => {
+            statusEl.innerText = "Disconnected";
+            statusEl.style.display = "block";
+        });
+
+        // 햅틱 피드백 (진동)
+        function triggerHaptic() {
+            if (navigator.vibrate) {
+                // 짧고 강한 진동 (iOS는 사용자 상호작용 후 작동 가능성 있음)
+                navigator.vibrate(20);
+            }
+        }
+
+        // 터치 핸들러
+        function handleTouch(e) {
+            // 기본 동작 방지 (스크롤 등을 막기 위해)
+            // e.preventDefault(); 
+            // -> e.preventDefault()를 여기서 호출하면 click 이벤트가 발생 안 할 수 있음.
+            //    하지만 게임 컨트롤러라 클릭은 필요 없고 touchstart만 있으면 됨.
+
+            // 멀티 터치 지원을 위해 changedTouches 순회
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                const target = document.elementFromPoint(touch.clientX, touch.clientY);
+
+                if (target && target.classList.contains('pad')) {
+                    activatePad(target);
+                }
+            }
+        }
+
+        // 패드 활성화 로직
+        function activatePad(element) {
+            // 시각적 피드백
+            element.classList.add('active');
+            setTimeout(() => element.classList.remove('active'), 100);
+
+            // 햅틱
+            triggerHaptic();
+
+            // 소켓 전송
+            const lane = element.getAttribute('data-lane');
+            if (lane) {
+                // 기존 서버 코드: 'pose_event' 이벤트의 { pose: '...' } 데이터 사용
+                socket.emit('pose_event', { pose: lane });
+                console.log(`Sent: ${lane}`);
+
+                // (옵션) 콤보용: Snare + Kick 같은 동시 입력 처리는 
+                // 서버가 "동시에" 받아서 처리하거나, 
+                // 유니티 쪽에서 각자 처리하므로 여기서는 개별 전송만 하면 됨.
+            }
+        }
+
+        // 이벤트 리스너 등록 (Touch & Mouse 모두 지원 - 디버깅 용이)
+        const pads = document.querySelectorAll('.pad');
+
+        pads.forEach(pad => {
+            // 모바일 터치
+            pad.addEventListener('touchstart', (e) => {
+                e.preventDefault(); // 중요: 롱탭 메뉴/스크롤 방지
+                activatePad(pad);
+            });
+
+            // PC 디버깅용 마우스 클릭
+            pad.addEventListener('mousedown', (e) => {
+                activatePad(pad);
+            });
+        });
+
+        // 안전장치: 화면 전체 터치 시 기본 동작 방지 (줌 등)
+        document.addEventListener('gesturestart', function (e) {
+            e.preventDefault();
+        });
+    </script>
+</body>
+
+</html>

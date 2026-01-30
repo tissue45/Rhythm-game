@@ -1,0 +1,80 @@
+{
+    "git": {
+        "deploymentEnabled": {
+            "main": true
+        }
+    },
+    "buildCommand": "npm run build",
+    "headers": [
+        {
+            "source": "/(.*)",
+            "headers": [
+                {
+                    "key": "Cross-Origin-Opener-Policy",
+                    "value": "same-origin"
+                },
+                {
+                    "key": "Cross-Origin-Embedder-Policy",
+                    "value": "require-corp"
+                }
+            ]
+        },
+        {
+            "source": "/game/Build/(.*).wasm",
+            "headers": [
+                {
+                    "key": "Content-Type",
+                    "value": "application/wasm"
+                }
+            ]
+        },
+        {
+            "source": "/game/Build/(.*).data",
+            "headers": [
+                {
+                    "key": "Content-Type",
+                    "value": "application/octet-stream"
+                }
+            ]
+        },
+        {
+            "source": "/game/Build/(.*).js.br",
+            "headers": [
+                {
+                    "key": "Content-Type",
+                    "value": "application/javascript"
+                },
+                {
+                    "key": "Content-Encoding",
+                    "value": "br"
+                }
+            ]
+        },
+        {
+            "source": "/game/Build/(.*).wasm.br",
+            "headers": [
+                {
+                    "key": "Content-Type",
+                    "value": "application/wasm"
+                },
+                {
+                    "key": "Content-Encoding",
+                    "value": "br"
+                }
+            ]
+        },
+        {
+            "source": "/game/Build/(.*).data.br",
+            "headers": [
+                {
+                    "key": "Content-Type",
+                    "value": "application/octet-stream"
+                },
+                {
+                    "key": "Content-Encoding",
+                    "value": "br"
+                }
+            ]
+        }
+    ]
+}
