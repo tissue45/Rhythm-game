@@ -24,10 +24,18 @@ app = Flask(__name__,
             template_folder=static_dir)
 
 # CORS 허용
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
 # SocketIO 설정
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
+socketio = SocketIO(
+    app,
+    cors_allowed_origins="*",
+    async_mode='eventlet',
+    ping_timeout=60,
+    ping_interval=25,
+    transports=['websocket', 'polling'],
+    allow_upgrades=True
+)
 
 # UDP 소켓 설정
 UDP_IP = "127.0.0.1"
