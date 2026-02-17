@@ -273,9 +273,13 @@ Frontend/build/
 Frontend/.next/
 Frontend/.nuxt/
 
-# Unity WebGL builds (will be built on deploy)
-Build/
+# Unity WebGL builds (일반 빌드 무시)
 WebGLBuild/
+
+# docs/game/Build는 GitHub Pages용이므로 허용하되, 100MB 초과 파일은 제외
+!docs/game/Build/
+docs/game/Build/game.data
+docs/game/Build/game.data.part*
 
 # ============================================
 # Logs
