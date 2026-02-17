@@ -276,8 +276,9 @@ Frontend/.nuxt/
 # Unity WebGL builds (일반 빌드 무시)
 WebGLBuild/
 
-# docs/game/Build는 GitHub Pages용이므로 허용 (game.data는 LFS로 관리)
+# docs/game/Build는 GitHub Pages용이므로 허용 (game.data는 GitHub Releases에서 호스팅)
 !docs/game/Build/
+docs/game/Build/game.data
 docs/game/Build/game.data.part*
 
 # ============================================

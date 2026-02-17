@@ -163,4 +163,3 @@ render.yml text eol=lf
 # ============================================
 .github/workflows/*.yml text eol=lf
 .github/workflows/*.yaml text eol=lf
-docs/game/Build/game.data filter=lfs diff=lfs merge=lfs -text
