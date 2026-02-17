@@ -308,6 +308,15 @@ _site/
 .sass-cache/
 
 # ============================================
+# Unity Desktop Build in docs (GitHub Pages는 WebGL만 필요)
+# ============================================
+docs/game/MMD4Mecanim.exe
+docs/game/MMD4Mecanim_Data/
+docs/game/MonoBleedingEdge/
+docs/game/UnityCrashHandler64.exe
+docs/game/UnityPlayer.dll
+
+# ============================================
 # Project specific
 # ============================================
 # MediaPipe models (large files - consider Git LFS)

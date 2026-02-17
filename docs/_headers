@@ -1,0 +1,19 @@
+# Unity WebGL MIME Types
+/game/Build/*.js
+  Content-Type: application/javascript
+/game/Build/*.wasm
+  Content-Type: application/wasm
+/game/Build/*.data
+  Content-Type: application/octet-stream
+/game/TemplateData/*.css
+  Content-Type: text/css
+/game/TemplateData/*.js
+  Content-Type: application/javascript
+
+# General static files
+/*.js
+  Content-Type: application/javascript
+/*.css
+  Content-Type: text/css
+/*.wasm
+  Content-Type: application/wasm

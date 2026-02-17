@@ -1,0 +1,22 @@
+services:
+  # 1. Unity 인증 브릿지 서버 (Node.js)
+  - type: web
+    name: stepup-auth-server
+    runtime: node
+    buildCommand: npm install
+    startCommand: node unity_auth_server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+  # 2. Socket.IO 릴레이 서버 (Python)
+  - type: web
+    name: rhythm-game-relay
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT relay_server:app
+    envVars:
+      - key: RENDER
+        value: true
+      - key: PYTHON_VERSION
+        value: 3.11.0

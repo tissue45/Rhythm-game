@@ -5,13 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "cat public/game/Build/game.data.part* > public/game/Build/game.data && vite build && cp dist/index.html dist/404.html",
+    "build": "vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist"
   },
-  "homepage": "https://sohee9010.github.io/rhythm-game-website",
+  "homepage": "https://tissue45.github.io/Rhythm-game",
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
     "@tanstack/react-query": "^4.35.0",
