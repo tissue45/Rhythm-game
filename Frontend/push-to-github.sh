@@ -13,7 +13,7 @@ git commit -m "Update README for rhythm game website"
 git branch -M main
 
 # 4. GitHub 원격 저장소 추가
-git remote add origin https://github.com/sohee9010/rhythm-game-website.git
+git remote add origin https://github.com/tissue45/Rhythm-game.git
 
 # 5. GitHub에 푸시
 git push -u origin main

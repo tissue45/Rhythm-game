@@ -4,8 +4,7 @@
 - **컴파일 에러**: 모두 해결되었습니다. (플레이 모드 진입 가능)
 - **서버 URL 설정 (중요)**: 
   - `SchoolLobbyManager` 스크립트의 `deployedFrontendUrl` 변수를 확인하세요.
-  - **Vercel 사용자**: `https://stepup-rhythm.vercel.app` (기본값)
-  - **GitHub Pages 사용자**: 본인의 깃허브 페이지 주소 (예: `https://아이디.github.io/레포지토리명`)로 **반드시 변경**해야 합니다.
+  - **GitHub Pages**: `https://tissue45.github.io/Rhythm-game` (현재 설정)
 - **로컬 개발 모드**: `useLocalDevelopment` 체크박스가 **해제(False)** 되어 있어야 합니다.
 
 ## 2. 기능 점검 (배포 환경)

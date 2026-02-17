@@ -4,7 +4,7 @@ A rhythm game website with phone motion-controlled gameplay.
 
 ## Features
 
-- � **Phone Motion Control**: Use your phone's camera to control your avatar
+- 📱 **Phone Motion Control**: Use your phone's camera to control your avatar
 - 🎮 **Interactive Rhythm Gameplay**: Engaging rhythm game mechanics
 - 🌙 **Dark Theme**: Modern dark theme with neon aesthetics
 - 👤 **User Authentication**: Login and signup functionality

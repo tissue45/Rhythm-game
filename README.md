@@ -15,7 +15,7 @@ Unity(PC), React(Web), 모바일 컨트롤러가 실시간으로 연동되는 **
 
 ---
 
-## � 주요 기능
+## 🎯 주요 기능
 
 ### 1. **Unity 게임 (Desktop/WebGL)**
 - 🏫 **3D 학교 로비** - MMD 캐릭터 (미나, 민우) 상호작용
@@ -113,39 +113,39 @@ CVC: 아무 숫자 3자리
 #### 실행 중인 서비스
 | 서비스 | 로컬 URL | 배포 URL (예정) | 상태 |
 |--------|----------|----------------|------|
-| React 웹 | http://localhost:5173 | https://stepup-rhythm.vercel.app | ✅ 배포 준비 완료 |
-| Unity 인증 서버 | http://localhost:3001 | https://stepup-auth-server.onrender.com | ✅ 배포 준비 완료 |
+| React 웹 | http://localhost:5173 | https://tissue45.github.io/Rhythm-game | ✅ 배포됨 |
+| Unity 인증 서버 | http://localhost:3001 | https://rhythm-game-website.onrender.com | ✅ 배포됨 |
 | Socket.IO 서버 | - | https://rhythm-game-website.onrender.com | ✅ 이미 배포됨 |
-| Supabase DB | - | https://vraxfilfgphvluiokwlc.supabase.co | ✅ 클라우드 |
+| Supabase DB | - | Supabase 클라우드 | ✅ 운영 중 |
 
 #### 환경 변수 설정
 
 **로컬 개발 (`.env`)**
 ```env
-VITE_SUPABASE_URL=https://vraxfilfgphvluiokwlc.supabase.co
-VITE_SUPABASE_ANON_KEY=sb_publishable_pxwOmNrEqrVR6mVQwGQ-0Q_U72jXSYQ
+VITE_SUPABASE_URL=https://[your-supabase-url].supabase.co
+VITE_SUPABASE_ANON_KEY=[your-anon-key]
 VITE_API_URL=http://localhost:3001
-VITE_TOSS_CLIENT_KEY=test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq
+VITE_TOSS_CLIENT_KEY=test_ck_...
 ```
 
-**배포 환경 (`.env.production` / Vercel 환경 변수)**
+**배포 환경 (`.env.production`)**
 ```env
-VITE_SUPABASE_URL=https://vraxfilfgphvluiokwlc.supabase.co
-VITE_SUPABASE_ANON_KEY=sb_publishable_pxwOmNrEqrVR6mVQwGQ-0Q_U72jXSYQ
-VITE_API_URL=https://stepup-auth-server.onrender.com
-VITE_TOSS_CLIENT_KEY=test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq
+VITE_SUPABASE_URL=https://[your-supabase-url].supabase.co
+VITE_SUPABASE_ANON_KEY=[your-anon-key]
+VITE_API_URL=https://[your-render-app].onrender.com
+VITE_TOSS_CLIENT_KEY=test_ck_...
 ```
 
 #### 배포 가이드
-자세한 배포 방법은 [`DEPLOYMENT_GUIDE.md`](./DEPLOYMENT_GUIDE.md) 참고
+자세한 배포 방법은 [`DEPLOYMENT_ARCHITECTURE.md`](./DEPLOYMENT_ARCHITECTURE.md) 참고
 
 #### 배포 체크리스트
 - [x] **환경 변수 설정** - `.env`, `.env.production` 생성
 - [x] **코드 수정** - localhost URL → 환경 변수 사용
 - [x] **백엔드 준비** - PORT 환경 변수, 0.0.0.0 리스닝
-- [ ] **Render 배포** - Unity 인증 서버
-- [ ] **Vercel 배포** - React 웹 애플리케이션
-- [ ] **Unity 설정** - 배포된 URL로 변경
+- [x] **Render 배포** - Unity 인증 서버
+- [x] **GitHub Pages 배포** - React 웹 애플리케이션
+- [x] **Unity 설정** - 배포된 URL로 변경
 - [ ] **테스트** - 모든 기능 검증
 
 ---
@@ -153,7 +153,7 @@ VITE_TOSS_CLIENT_KEY=test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq
 ## 📁 프로젝트 구조
 
 ```
-Rhythm_game/
+Rhythm-game/
 ├── Frontend/                    # React 웹 애플리케이션
 │   ├── src/
 │   │   ├── pages/              # 페이지 컴포넌트
@@ -273,7 +273,7 @@ PC에서는 마우스 클릭, 모바일/태블릿에서는 화면 터치로 플�
 | 5,000 | ₩50,000 | +1,000 |
 
 ### 결제 수단
-- � 신용/체크카드
+- 💳 신용/체크카드
 - 💬 카카오페이
 - 🏦 계좌이체
 
@@ -317,8 +317,11 @@ Unity 게임 SHOP → 웹 브라우저 자동 열림 → 결제 완료 → Supab
 ### 환경 변수 (.env)
 ```env
 # Supabase
-VITE_SUPABASE_URL=https://zyqbuuovliissozugjfq.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGci...
+VITE_SUPABASE_URL=https://[your-supabase-url].supabase.co
+VITE_SUPABASE_ANON_KEY=[your-anon-key]
+
+# 백엔드 API
+VITE_API_URL=http://localhost:3001
 
 # 토스페이먼츠
 VITE_TOSS_CLIENT_KEY=test_ck_...
@@ -326,7 +329,7 @@ VITE_TOSS_CLIENT_KEY=test_ck_...
 
 ---
 
-## 📝 주요 업데이트 (2026-01-23)
+## 📝 주요 업데이트 (2026-02-17)
 
 ### ✅ 완료된 기능
 - [x] Unity 게임 로그인 시스템
@@ -358,6 +361,6 @@ VITE_TOSS_CLIENT_KEY=test_ck_...
 
 ---
 
-**Last Updated**: 2026-01-23  
-**Version**: 1.2.0  
+**Last Updated**: 2026-02-17  
+**Version**: 1.3.0  
 **License**: MIT

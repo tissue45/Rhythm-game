@@ -85,18 +85,7 @@ git push origin main
 ⚠️ 정적 사이트만 가능 (React는 OK)
 
 배포 URL 예시:
-https://sohee9010.github.io/rhythm-game-website
-```
-
-#### 옵션 B: Vercel (대안 - 무료)
-```
-장점:
-✅ 무료 플랜 제공
-✅ 자동 배포
-✅ 환경 변수 관리 쉬움
-
-배포 URL 예시:
-https://stepup-rhythm.vercel.app
+https://tissue45.github.io/Rhythm-game
 ```
 
 ### 2. **백엔드 (Unity 인증 서버)**
@@ -127,7 +116,7 @@ URL: https://rhythm-game-website.onrender.com
 #### ✅ Supabase (이미 설정됨)
 ```
 현재 상태: 이미 설정되어 작동 중
-URL: https://vraxfilfgphvluiokwlc.supabase.co
+URL: Supabase 클라우드
 
 필요 작업: 없음 (그대로 사용)
 ```
@@ -190,7 +179,7 @@ git push origin main
 **4단계: 배포 URL 확인**
 - 배포 완료까지 1-2분 소요
 - 배포 URL: `https://[사용자명].github.io/[저장소명]`
-- 예시: `https://sohee9010.github.io/rhythm-game-website`
+- 예시: `https://tissue45.github.io/Rhythm-game`
 
 **5단계: 환경 변수 설정 (필요시)**
 - GitHub Pages는 환경 변수를 직접 설정할 수 없음
@@ -200,9 +189,9 @@ git push origin main
 #### 3. **환경 변수 업데이트** (5분)
 ```
 GitHub Pages 환경 변수:
-- VITE_API_URL=https://rhythm-game-website.onrender.com
-- VITE_SUPABASE_URL=https://vraxfilfgphvluiokwlc.supabase.co
-- VITE_SUPABASE_ANON_KEY=sb_publishable_...
+- VITE_API_URL=https://[your-render-app].onrender.com
+- VITE_SUPABASE_URL=https://[your-supabase-url].supabase.co
+- VITE_SUPABASE_ANON_KEY=[your-anon-key]
 - VITE_TOSS_CLIENT_KEY=test_ck_...
 ```
 
@@ -227,10 +216,10 @@ private string backendApiUrl = "https://rhythm-game-website.onrender.com";
 
 | 서비스 | URL |
 |--------|-----|
-| **프론트엔드** | https://sohee9010.github.io/rhythm-game-website |
+| **프론트엔드** | https://tissue45.github.io/Rhythm-game |
 | **백엔드 API** | https://rhythm-game-website.onrender.com |
 | **Socket.IO** | https://rhythm-game-website.onrender.com |
-| **데이터베이스** | https://vraxfilfgphvluiokwlc.supabase.co |
+| **데이터베이스** | Supabase (클라우드) |
 
 ---
 
@@ -244,10 +233,10 @@ private string backendApiUrl = "https://rhythm-game-website.onrender.com";
 3. ✅ **간단한 배포** - git push만으로 자동 배포
 4. ✅ **정적 사이트 호스팅** - React 빌드 결과물 호스팅에 최적
 
-**Vercel을 사용하지 않는 이유:**
-- GitHub Pages로 충분함
+**GitHub Pages를 선택한 이유:**
+- GitHub 저장소와 바로 연동 가능
 - 추가 계정 생성 불필요
-- 설정이 더 간단함
+- 설정이 간단함
 
 ### Render.com
 
