@@ -154,13 +154,11 @@
       var script = document.createElement("script");
       script.src = loaderUrl;
       script.onload = () => {
-        unityShowBanner("Downloading game data (4 chunks)...", "warning");
         fetchChunksAndCombine(dataChunks, function(p) {
           progressBarFull.style.width = (p * 50) + "%";
         }).then(function(combinedBuffer) {
           var blob = new Blob([combinedBuffer]);
           config.dataUrl = URL.createObjectURL(blob);
-          unityShowBanner("Loading Unity engine...", "warning");
           createUnityInstance(canvas, config, (progress) => {
             progressBarFull.style.width = 50 + (50 * progress) + "%";
           }).then((unityInstance) => {
