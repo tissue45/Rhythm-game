@@ -1,7 +1,7 @@
 import eventlet
 eventlet.monkey_patch()
 
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, render_template, request, jsonify, send_from_directory, make_response
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
 import socket
@@ -19,12 +19,19 @@ if not os.path.exists(static_dir):
     print("Did you run 'npm run build' in Frontend?")
 
 app = Flask(__name__, 
-            static_url_path='',
             static_folder=static_dir,
             template_folder=static_dir)
 
 # CORS 허용
-CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+CORS(app, resources={r"/*": {"origins": "*"}})
+
+# 모든 응답에 CORS 헤더 강제 추가 (안전장치)
+@app.after_request
+def add_cors_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS, PUT, DELETE'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    return response
 
 # SocketIO 설정
 socketio = SocketIO(
@@ -34,7 +41,9 @@ socketio = SocketIO(
     ping_timeout=60,
     ping_interval=25,
     transports=['websocket', 'polling'],
-    allow_upgrades=True
+    allow_upgrades=True,
+    logger=True,
+    engineio_logger=True
 )
 
 # UDP 소켓 설정
@@ -68,11 +77,20 @@ def get_all_ips():
 
 @app.route('/')
 def index():
+    is_render = os.environ.get("RENDER", False)
+    
+    # Render.com에서는 릴레이 서버 전용이므로 간단한 상태 페이지 반환
+    if is_render or not app.static_folder or not os.path.exists(app.static_folder):
+        return jsonify({
+            "status": "ok",
+            "service": "rhythm-game-relay",
+            "message": "Socket.IO relay server is running"
+        })
+    
     full_path = os.path.join(app.static_folder, 'index.html')
     print(f"Attempting to serve: {full_path}")
     
     if not os.path.exists(full_path):
-        # 404 발생 시 폴더 목록을 보여줘서 디버깅
         files = os.listdir(app.static_folder) if os.path.exists(app.static_folder) else f"Folder not found: {app.static_folder}"
         return f"CRITICAL ERROR: File not found at {full_path}. <br> Contents of {app.static_folder}: <br> {files}", 404
         
@@ -94,8 +112,11 @@ def serve_assets(path):
 # Catch-all for other paths (SPA support)
 @app.route('/<path:path>')
 def catch_all(path):
+    # socket.io 경로는 Flask-SocketIO가 처리하므로 건드리지 않음
+    if path.startswith('socket.io'):
+        return '', 404
     # Check if it's a static file first
-    if os.path.exists(os.path.join(app.static_folder, path)):
+    if app.static_folder and os.path.exists(os.path.join(app.static_folder, path)):
         return send_from_directory(app.static_folder, path)
     return index()
 
