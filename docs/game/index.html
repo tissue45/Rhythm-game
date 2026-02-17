@@ -10,17 +10,8 @@
   <body>
     <script type="text/javascript">
       // iframe이 아닌 직접 접근 시 React SPA로 리다이렉트
-      // (새로고침 시 GitHub Pages가 이 파일을 직접 서빙하는 문제 해결)
       if (window.self === window.top) {
-        var pathSegmentsToKeep = 1;
-        var l = window.location;
-        l.replace(
-          l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
-          l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/?/' +
-          l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/').replace(/&/g, '~and~') +
-          (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
-          l.hash
-        );
+        window.location.replace('/Rhythm-game/?p=game');
       }
     </script>
     <div id="unity-container" class="unity-desktop">
