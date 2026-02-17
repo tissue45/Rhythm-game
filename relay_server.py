@@ -150,46 +150,43 @@ def handle_mobile_input(data):
     except Exception as e:
         print(f"Error forwarding mobile input: {e}")
 
-if __name__ == '__main__':
-    all_ips = get_all_ips()
+def run_server():
     port = int(os.environ.get("PORT", 5000))
-    primary_ip = all_ips[0]
+    is_render = os.environ.get("RENDER", False)
     
     print("\n" + "="*50)
     print(f"Web Controller Server Starting")
-    print(f"Local URL: http://{primary_ip}:{port}/controller")
-    
-    # Ask for Tunnel URL to generate correct QR Code
-    print("\n[OPTIONAL] Enter public Tunnel URL (e.g. https://xxxx.loca.lt) to update QR Code.")
-    print("Press ENTER to skip and use Local URL.")
-    tunnel_url = input("Tunnel URL > ").strip()
-    
-    final_url = f"{tunnel_url}/controller" if tunnel_url else f"http://{primary_ip}:{port}/controller"
-    
-    print(f"\nFinal Controller URL: {final_url}")
+    print(f"Port: {port}")
+    print(f"Environment: {'Render.com' if is_render else 'Local'}")
     print("="*50 + "\n")
-
-    # Generate QR Code
-    qr = qrcode.QRCode()
-    qr.add_data(final_url)
-    qr.make(fit=True)
     
-    try:
-        img = qr.make_image(fill_color="black", back_color="white")
-        save_path = os.path.join(base_dir, 'Assets', 'Resources', 'qrcode.png')
+    if not is_render:
+        all_ips = get_all_ips()
+        primary_ip = all_ips[0]
+        print(f"Local URL: http://{primary_ip}:{port}/controller")
         
-        # Resources 폴더가 없으면 생성 시도
-        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        # Ask for Tunnel URL (local only)
+        print("\n[OPTIONAL] Enter public Tunnel URL (e.g. https://xxxx.loca.lt)")
+        print("Press ENTER to skip and use Local URL.")
+        tunnel_url = input("Tunnel URL > ").strip()
         
-        img.save(save_path)
-        print(f"QR Code saved to: {save_path}")
-    except Exception as e: 
-        print(f"Failed to save QR Code: {e}")
-
-    # 3. 서버 실행 (HTTP)
+        final_url = f"{tunnel_url}/controller" if tunnel_url else f"http://{primary_ip}:{port}/controller"
+        
+        # Generate QR Code (local only)
+        try:
+            qr = qrcode.QRCode()
+            qr.add_data(final_url)
+            qr.make(fit=True)
+            img = qr.make_image(fill_color="black", back_color="white")
+            save_path = os.path.join(base_dir, 'Assets', 'Resources', 'qrcode.png')
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            img.save(save_path)
+            print(f"QR Code saved to: {save_path}")
+        except Exception as e:
+            print(f"Failed to save QR Code: {e}")
+    
     print(f"Listening on 0.0.0.0:{port} (HTTP)...")
-    try:
-        socketio.run(app, host='0.0.0.0', port=port, debug=True, use_reloader=False) 
-    except Exception as e:
-        print(f"CRITICAL ERROR: {e}")
-        input("Press Enter to exit...")
+    socketio.run(app, host='0.0.0.0', port=port, debug=not is_render, use_reloader=False)
+
+if __name__ == '__main__':
+    run_server()

@@ -10,7 +10,11 @@ export default defineConfig({
     }),
     // basicSsl() // HTTP로 변경 (Unity 연동용)
   ],
-  base: '/', // Changed from '/rhythm-game-website/' for Render deployment
+  base: '/Rhythm-game/', // GitHub Pages: https://tissue45.github.io/Rhythm-game/
+  build: {
+    outDir: '../docs',
+    emptyOutDir: true,
+  },
   esbuild: {
     loader: 'tsx',
     include: /src\/.*\.[jt]sx?$/,
