@@ -276,9 +276,11 @@ Frontend/.nuxt/
 # Unity WebGL builds (일반 빌드 무시)
 WebGLBuild/
 
-# docs/game/Build는 GitHub Pages용이므로 허용 (game.data는 GitHub Releases에서 호스팅)
+# docs/game/Build는 GitHub Pages용이므로 허용
 !docs/game/Build/
+# game.data 원본 (205MB, GitHub 100MB 제한 초과) - 청크 파일(.00~.03)로 대체
 docs/game/Build/game.data
+# 이전 split 파일 (사용 안 함)
 docs/game/Build/game.data.part*
 
 # ============================================

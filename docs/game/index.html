@@ -58,8 +58,16 @@
 
       var buildUrl = "Build";
       var loaderUrl = buildUrl + "/game.loader.js";
+
+      var dataChunks = [
+        buildUrl + "/game.data.00",
+        buildUrl + "/game.data.01",
+        buildUrl + "/game.data.02",
+        buildUrl + "/game.data.03"
+      ];
+
       var config = {
-        dataUrl: "https://github.com/tissue45/Rhythm-game/releases/download/v1.0-assets/game.data",
+        dataUrl: "",
         frameworkUrl: buildUrl + "/game.framework.js",
         codeUrl: buildUrl + "/game.wasm",
         streamingAssetsUrl: "StreamingAssets",
@@ -109,20 +117,64 @@
 
       loadingBar.style.display = "block";
 
+      function fetchChunksAndCombine(chunkUrls, onProgress) {
+        var totalLoaded = 0;
+        var estimatedTotal = 205 * 1024 * 1024;
+        return Promise.all(chunkUrls.map(function(url) {
+          return fetch(url).then(function(response) {
+            if (!response.ok) throw new Error("Failed to fetch " + url + ": " + response.status);
+            var reader = response.body.getReader();
+            var chunks = [];
+            function read() {
+              return reader.read().then(function(result) {
+                if (result.done) {
+                  var totalLength = chunks.reduce(function(sum, c) { return sum + c.length; }, 0);
+                  var combined = new Uint8Array(totalLength);
+                  var offset = 0;
+                  chunks.forEach(function(c) { combined.set(c, offset); offset += c.length; });
+                  return combined.buffer;
+                }
+                chunks.push(result.value);
+                totalLoaded += result.value.length;
+                if (onProgress) onProgress(Math.min(totalLoaded / estimatedTotal, 0.9));
+                return read();
+              });
+            }
+            return read();
+          });
+        })).then(function(buffers) {
+          var totalLength = buffers.reduce(function(sum, b) { return sum + b.byteLength; }, 0);
+          var combined = new Uint8Array(totalLength);
+          var offset = 0;
+          buffers.forEach(function(b) { combined.set(new Uint8Array(b), offset); offset += b.byteLength; });
+          return combined.buffer;
+        });
+      }
+
       var script = document.createElement("script");
       script.src = loaderUrl;
       script.onload = () => {
-        createUnityInstance(canvas, config, (progress) => {
-          progressBarFull.style.width = 100 * progress + "%";
-              }).then((unityInstance) => {
-                loadingBar.style.display = "none";
-                fullscreenButton.onclick = () => {
-                  unityInstance.SetFullscreen(1);
-                };
-              }).catch((message) => {
-                alert(message);
-              });
+        unityShowBanner("Downloading game data (4 chunks)...", "warning");
+        fetchChunksAndCombine(dataChunks, function(p) {
+          progressBarFull.style.width = (p * 50) + "%";
+        }).then(function(combinedBuffer) {
+          var blob = new Blob([combinedBuffer]);
+          config.dataUrl = URL.createObjectURL(blob);
+          unityShowBanner("Loading Unity engine...", "warning");
+          createUnityInstance(canvas, config, (progress) => {
+            progressBarFull.style.width = 50 + (50 * progress) + "%";
+          }).then((unityInstance) => {
+            loadingBar.style.display = "none";
+            fullscreenButton.onclick = () => {
+              unityInstance.SetFullscreen(1);
             };
+          }).catch((message) => {
+            alert(message);
+          });
+        }).catch(function(err) {
+          unityShowBanner("Failed to load game data: " + err.message, "error");
+        });
+      };
 
       document.body.appendChild(script);
 
