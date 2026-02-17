@@ -21,7 +21,7 @@ const GamePage: React.FC = () => {
         window.addEventListener('beforeunload', handleBeforeUnload);
 
         // SocketIO 연결
-        const socket = io(import.meta.env.VITE_SOCKET_URL || "https://rhythm-game-relay.onrender.com");
+        const socket = io(import.meta.env.VITE_SOCKET_URL || "https://rhythm-game-xr0s.onrender.com");
 
         socket.on("connect", () => {
             console.log("Connected to Relay Server via WebSocket");
